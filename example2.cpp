@@ -19,21 +19,20 @@ struct Vertex
 
 namespace bsp {
 
-// we return a const reference to our position, this way we don't need to copy the values
-template <> struct VertexReturnType<Vertex> { typedef const boost::qvm::vec<float, 3> & type; };
-
-template <>
-typename VertexReturnType<Vertex>::type getPosition(const Vertex & v)
-{
-  return v.pos;
-}
-template<> void addInterpolatedVertex(std::vector<Vertex> & dest, const Vertex & v1, const Vertex & v2, float i)
-{
-  using boost::qvm::operator+;
-  using boost::qvm::operator*;
-  dest.emplace_back(v1.pos*(1-i) + v2.pos*i);
-}
-
+  template <> struct bsp_traits<Vertex>
+  {
+    typedef const boost::qvm::vec<float, 3> & position_type;
+    static position_type getPosition(const Vertex & v)
+    {
+      return v.pos;
+    }
+    static void addInterpolatedVertex(std::vector<Vertex> & dest, const Vertex & v1, const Vertex & v2, float i)
+    {
+      using boost::qvm::operator+;
+      using boost::qvm::operator*;
+      dest.emplace_back(v1.pos*(1-i) + v2.pos*i);
+    }
+  };
 }
 
 int main()

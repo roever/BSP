@@ -60,13 +60,15 @@ struct Vertex
 // struct and what type the value will have. The value needs to be qvm compatible
 namespace bsp {
 
-template<> struct VertexReturnType<Vertex> { typedef const float3 type; };
-template<> typename VertexReturnType<Vertex>::type getPosition(const Vertex & v) { return (float3)v.p; }
-template<> void addInterpolatedVertex(std::vector<Vertex> & dest, const Vertex & v1, const Vertex & v2, float i)
-{
-  dest.emplace_back(v1, v2, i);
-}
-
+  template<> struct bsp_traits<Vertex>
+  {
+    typedef const float3 position_type;
+    static position_type getPosition(const Vertex & v) { return (float3)v.p; }
+    static void addInterpolatedVertex(std::vector<Vertex> & dest, const Vertex & v1, const Vertex & v2, float i)
+    {
+      dest.emplace_back(v1, v2, i);
+    }
+  };
 }
 
 using namespace boost::qvm;
@@ -106,9 +108,9 @@ int main()
 
   for (size_t i = 0; i < a.size(); i += 3)
   {
-    auto v1 = bsp::getPosition(bsp.getVertices()[a[i  ]]);
-    auto v2 = bsp::getPosition(bsp.getVertices()[a[i+1]]);
-    auto v3 = bsp::getPosition(bsp.getVertices()[a[i+2]]);
+    auto v1 = bsp::bsp_traits<Vertex>::getPosition(bsp.getVertices()[a[i  ]]);
+    auto v2 = bsp::bsp_traits<Vertex>::getPosition(bsp.getVertices()[a[i+1]]);
+    auto v3 = bsp::bsp_traits<Vertex>::getPosition(bsp.getVertices()[a[i+2]]);
     auto n = cross(vref(v2)-v1, vref(v3)-v1);
 
     printf("facet normal %f %f %f\n", X(n), Y(n), Z(n));

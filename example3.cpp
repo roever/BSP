@@ -39,23 +39,23 @@ struct Vertex
 
 namespace bsp {
 
-template <class S> struct VertexReturnType<Vertex<S>> { typedef const std::array<S, 3> & type; };
+  template<class S> struct bsp_traits<Vertex<S>>
+  {
+    typedef const std::array<S, 3> & position_type;
 
-template <>
-typename VertexReturnType<Vertex<double>>::type getPosition(const Vertex<double> & v)
-{
-  return v.pos;
-}
-template<> void addInterpolatedVertex<Vertex<double>, double>(std::vector<Vertex<double>> & dest, const Vertex<double> & v1, const Vertex<double> & v2, double i)
-{
-  using boost::qvm::operator+;
-  using boost::qvm::operator*;
+    static position_type getPosition(const Vertex<S> & v)
+    {
+      return v.pos;
+    }
+    static void addInterpolatedVertex(std::vector<Vertex<S>> & dest, const Vertex<S> & v1, const Vertex<S> & v2, double i)
+    {
+      using boost::qvm::operator+;
+      using boost::qvm::operator*;
 
-  auto pos  = v1.pos*(1-i)  + v2.pos*i;
-
-  dest.emplace_back(boost::qvm::X(pos), boost::qvm::Y(pos), boost::qvm::Z(pos));
-}
-
+      auto pos  = v1.pos*(1-i)  + v2.pos*i;
+      dest.emplace_back(boost::qvm::X(pos), boost::qvm::Y(pos), boost::qvm::Z(pos));
+    }
+  };
 }
 
 int main()

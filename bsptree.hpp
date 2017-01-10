@@ -17,9 +17,8 @@ namespace qvm=boost::qvm;
 /// specialize these 2 templates for your type V that you use within the bsp tree
 /// VertexReturnType represents the type of the getPosition function
 /// try to use a reference and it can be const
-template <class V> struct VertexReturnType;
-template <class V> typename VertexReturnType<V>::type getPosition(const V & v);
-template <class V, class F> void addInterpolatedVertex(std::vector<V> & dest, const V & v1, const V & v2, F i);
+template <class V> class bsp_traits;
+
 
 /// A class for a bsp-Tree. The tree is meant for OpenGL usage. You input a vertex array and the tree will sort
 /// them in order from back to front so that you can draw transparency properly
@@ -99,9 +98,9 @@ class BspTree
     // calculate the plane in hessian normal form for the triangle with the indices given in the triple p
     std::tuple<qvm::vec<F, 3>, F> calculatePlane(int a, int b, int c)
     {
-      auto p1 = getPosition(vertices_[a]);
-      auto p2 = getPosition(vertices_[b]);
-      auto p3 = getPosition(vertices_[c]);
+      auto p1 = bsp_traits<V>::getPosition(vertices_[a]);
+      auto p2 = bsp_traits<V>::getPosition(vertices_[b]);
+      auto p3 = bsp_traits<V>::getPosition(vertices_[c]);
 
       using boost::qvm::operator-;
       qvm::vec<F, 3> norm = qvm::normalized(qvm::cross(qvm::vref(p2)-p1, qvm::vref(p3)-p1));
@@ -133,9 +132,9 @@ class BspTree
       {
         std::array<F, 3> dist
         {
-          distance(plane, getPosition(vertices_[indices[i  ]])),
-          distance(plane, getPosition(vertices_[indices[i+1]])),
-          distance(plane, getPosition(vertices_[indices[i+2]]))
+          distance(plane, bsp_traits<V>::getPosition(vertices_[indices[i  ]])),
+          distance(plane, bsp_traits<V>::getPosition(vertices_[indices[i+1]])),
+          distance(plane, bsp_traits<V>::getPosition(vertices_[indices[i+2]]))
         };
 
         std::array<int, 3> side { sign(dist[0]), sign(dist[1]), sign(dist[2]) };
@@ -145,17 +144,17 @@ class BspTree
         if (side[0] * side[1] == -1)
         {
           A[0] = vertices_.size();
-          addInterpolatedVertex(vertices_, vertices_[indices[i  ]], vertices_[indices[i+1]], relation(dist[0], dist[1]));
+          bsp_traits<V>::addInterpolatedVertex(vertices_, vertices_[indices[i  ]], vertices_[indices[i+1]], relation(dist[0], dist[1]));
         }
         if (side[1] * side[2] == -1)
         {
           A[1] = vertices_.size();
-          addInterpolatedVertex(vertices_, vertices_[indices[i+1]], vertices_[indices[i+2]], relation(dist[1], dist[2]));
+          bsp_traits<V>::addInterpolatedVertex(vertices_, vertices_[indices[i+1]], vertices_[indices[i+2]], relation(dist[1], dist[2]));
         }
         if (side[2] * side[0] == -1)
         {
           A[2] = vertices_.size();
-          addInterpolatedVertex(vertices_, vertices_[indices[i+2]], vertices_[indices[i  ]], relation(dist[2], dist[0]));
+          bsp_traits<V>::addInterpolatedVertex(vertices_, vertices_[indices[i+2]], vertices_[indices[i  ]], relation(dist[2], dist[0]));
         }
 
         switch (splitType(side[0], side[1], side[2]))
@@ -269,9 +268,9 @@ class BspTree
       {
         std::array<F, 3> dist
         {
-          distance(plane, getPosition(vertices_[i  ])),
-          distance(plane, getPosition(vertices_[i+1])),
-          distance(plane, getPosition(vertices_[i+2]))
+          distance(plane, bsp_traits<V>::getPosition(vertices_[i  ])),
+          distance(plane, bsp_traits<V>::getPosition(vertices_[i+1])),
+          distance(plane, bsp_traits<V>::getPosition(vertices_[i+2]))
         };
 
         std::array<int, 3> side { sign(dist[0]), sign(dist[1]), sign(dist[2]) };
