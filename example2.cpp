@@ -19,18 +19,20 @@ struct Vertex
 
 namespace bsp {
 
-  template <> struct bsp_traits<Vertex>
+  template <> struct bsp_traits<std::vector<Vertex>>
   {
     typedef const boost::qvm::vec<float, 3> & position_type;
-    static position_type getPosition(const Vertex & v)
+    static position_type getPosition(const std::vector<Vertex> & v, size_t i)
     {
-      return v.pos;
+      return v[i].pos;
     }
-    static void addInterpolatedVertex(std::vector<Vertex> & dest, const Vertex & v1, const Vertex & v2, float i)
+    static size_t addInterpolatedVertex(std::vector<Vertex> & dest, size_t a, size_t b, float i)
     {
       using boost::qvm::operator+;
       using boost::qvm::operator*;
-      dest.emplace_back(v1.pos*(1-i) + v2.pos*i);
+      size_t res = dest.size();
+      dest.emplace_back(dest[a].pos*(1-i) + dest[b].pos*i);
+      return res;
     }
   };
 }
@@ -60,7 +62,7 @@ int main()
 
   // as we know that we only have very few vertices, we use uint8_t indices this time... this limits us
   // to 256 vertices though but saves some memory and would require less upload to the GPU
-  bsp::BspTree<Vertex, uint8_t> bsp2(std::move(v2));
+  bsp::BspTree<std::vector<Vertex>, uint8_t> bsp2(std::move(v2));
 
   auto a2 = bsp2.sort({-5, 5, 5});
 }

@@ -3,18 +3,21 @@
 #include <boost/qvm/vec_access.hpp>
 #include <boost/qvm/vec_traits_array.hpp>
 
+#include <deque>
+
 // a third example, this time using std::arrays with 3 elements as the type to store
 // the position
 
-// this registers all std::arrays of length 3 with qvm... so be careful with operator overloading
+// this registers all std::arrays with qvm... so be careful with operator overloading... and right now is seems
+// to only work with clang... not with gcc
 namespace boost
 {
     namespace qvm
     {
-        template <class S>
-        struct vec_traits<std::array<S, 3>>
+        template <class S, int D>
+        struct vec_traits<std::array<S, D>>
         {
-            static int const dim=3;
+            static int const dim=D;
             typedef S scalar_type;
 
             template <int I> static inline scalar_type & write_element( std::array<scalar_type, dim> & v ) { return v[I]; }
@@ -39,21 +42,23 @@ struct Vertex
 
 namespace bsp {
 
-  template<class S> struct bsp_traits<Vertex<S>>
+  template<class S> struct bsp_traits<std::deque<Vertex<S>>>
   {
     typedef const std::array<S, 3> & position_type;
 
-    static position_type getPosition(const Vertex<S> & v)
+    static position_type getPosition(const std::deque<Vertex<S>> & v, size_t i)
     {
-      return v.pos;
+      return v[i].pos;
     }
-    static void addInterpolatedVertex(std::vector<Vertex<S>> & dest, const Vertex<S> & v1, const Vertex<S> & v2, double i)
+    static size_t addInterpolatedVertex(std::deque<Vertex<S>> & dest, size_t a, size_t b, double i)
     {
       using boost::qvm::operator+;
       using boost::qvm::operator*;
 
-      auto pos  = v1.pos*(1-i)  + v2.pos*i;
+      auto pos  = dest[a].pos*(1-i) + dest[b].pos*i;
+      size_t res = dest.size();
       dest.emplace_back(boost::qvm::X(pos), boost::qvm::Y(pos), boost::qvm::Z(pos));
+      return res;
     }
   };
 }
@@ -62,7 +67,7 @@ int main()
 {
   // Example 3
 
-  std::vector<Vertex<double>> v3 {
+  std::deque<Vertex<double>> v3 {
     {0, 0, 0},{1, 0, 0},{1, 1, 0},    {0, 0, 0}, {1, 1, 0}, {0, 1, 0},
     {0, 0, 1},{1, 1, 1},{1, 0, 1},    {0, 0, 1}, {0, 1, 1}, {1, 1, 1},
 
@@ -83,7 +88,7 @@ int main()
   };
 
 
-  bsp::BspTree<Vertex<double>, uint16_t, 4, double> bsp3(std::move(v3));
+  bsp::BspTree<std::deque<Vertex<double>>, uint16_t, 4, double> bsp3(std::move(v3));
 
   auto a3 = bsp3.sort({-5, 5, 5});
 

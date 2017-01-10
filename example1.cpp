@@ -60,13 +60,15 @@ struct Vertex
 // struct and what type the value will have. The value needs to be qvm compatible
 namespace bsp {
 
-  template<> struct bsp_traits<Vertex>
+  template<> struct bsp_traits<std::vector<Vertex>>
   {
     typedef const float3 position_type;
-    static position_type getPosition(const Vertex & v) { return (float3)v.p; }
-    static void addInterpolatedVertex(std::vector<Vertex> & dest, const Vertex & v1, const Vertex & v2, float i)
+    static position_type getPosition(const std::vector<Vertex> & v, size_t i) { return (const float3)v[i].p; }
+    static size_t addInterpolatedVertex(std::vector<Vertex> & dest, size_t a, size_t b, float i)
     {
-      dest.emplace_back(v1, v2, i);
+      size_t res = dest.size();
+      dest.emplace_back(dest[a], dest[b], i);
+      return res;
     }
   };
 }
@@ -98,7 +100,7 @@ int main()
   };
 
   // create the tree
-  bsp::BspTree<Vertex, uint16_t> bsp(std::move(v));
+  bsp::BspTree<std::vector<Vertex>, uint16_t> bsp(std::move(v));
 
   // sort when looking from the given position
   auto a = bsp.sort({-5, 5, 5});
@@ -108,9 +110,9 @@ int main()
 
   for (size_t i = 0; i < a.size(); i += 3)
   {
-    auto v1 = bsp::bsp_traits<Vertex>::getPosition(bsp.getVertices()[a[i  ]]);
-    auto v2 = bsp::bsp_traits<Vertex>::getPosition(bsp.getVertices()[a[i+1]]);
-    auto v3 = bsp::bsp_traits<Vertex>::getPosition(bsp.getVertices()[a[i+2]]);
+    auto v1 = bsp::bsp_traits<std::vector<Vertex>>::getPosition(bsp.getVertices(), a[i  ]);
+    auto v2 = bsp::bsp_traits<std::vector<Vertex>>::getPosition(bsp.getVertices(), a[i+1]);
+    auto v3 = bsp::bsp_traits<std::vector<Vertex>>::getPosition(bsp.getVertices(), a[i+2]);
     auto n = cross(vref(v2)-v1, vref(v3)-v1);
 
     printf("facet normal %f %f %f\n", X(n), Y(n), Z(n));
