@@ -3,6 +3,8 @@
 #include <boost/qvm/vec_access.hpp>
 #include <boost/qvm/vec_traits_array.hpp>
 
+#include <vector>
+
 // a simple example that uses c-type float arrays in the vertex structure to
 // store the position
 //
@@ -60,15 +62,13 @@ struct Vertex
 // struct and what type the value will have. The value needs to be qvm compatible
 namespace bsp {
 
-  template<> struct bsp_traits<std::vector<Vertex>>
+  template<> struct bsp_vertex_traits<Vertex>
   {
     typedef const float3 position_type;
-    static position_type getPosition(const std::vector<Vertex> & v, size_t i) { return (const float3)v[i].p; }
-    static size_t addInterpolatedVertex(std::vector<Vertex> & dest, size_t a, size_t b, float i)
+    static position_type getPosition(const Vertex & v) { return (const float3)v.p; }
+    static Vertex getInterpolatedVertex(const Vertex & a, const Vertex & b, float i)
     {
-      size_t res = dest.size();
-      dest.emplace_back(dest[a], dest[b], i);
-      return res;
+      return Vertex(a, b, i);
     }
   };
 }
@@ -99,8 +99,13 @@ int main()
     {1.5, 0.5, 0.5},{1.5, 1.5, 1.5},{1.5, 1.5, 0.5},    {1.5, 0.5, 0.5}, {1.5, 0.5, 1.5}, {1.5, 1.5, 1.5},
   };
 
-  // create the tree
-  bsp::BspTree<std::vector<Vertex>, uint16_t> bsp(std::move(v));
+  std::vector<uint16_t> indices(v.size());
+  for (size_t i = 0; i < indices.size(); i++) indices[i] = i;
+
+  // create the tree (C++17)
+  //bsp::BspTree bsp(std::move(v), indices);
+  // older c++
+  bsp::BspTree<std::vector<Vertex>, std::vector<uint16_t>> bsp(std::move(v), indices);
 
   // sort when looking from the given position
   auto a = bsp.sort({-5, 5, 5});
@@ -110,9 +115,10 @@ int main()
 
   for (size_t i = 0; i < a.size(); i += 3)
   {
-    auto v1 = bsp::bsp_traits<std::vector<Vertex>>::getPosition(bsp.getVertices(), a[i  ]);
-    auto v2 = bsp::bsp_traits<std::vector<Vertex>>::getPosition(bsp.getVertices(), a[i+1]);
-    auto v3 = bsp::bsp_traits<std::vector<Vertex>>::getPosition(bsp.getVertices(), a[i+2]);
+    const float3 v1 = (const float3)bsp.getVertices()[a[i  ]].p;
+    const float3 v2 = (const float3)bsp.getVertices()[a[i+1]].p;
+    const float3 v3 = (const float3)bsp.getVertices()[a[i+2]].p;
+
     auto n = cross(vref(v2)-v1, vref(v3)-v1);
 
     printf("facet normal %f %f %f\n", X(n), Y(n), Z(n));

@@ -42,23 +42,21 @@ struct Vertex
 
 namespace bsp {
 
-  template<class S> struct bsp_traits<std::deque<Vertex<S>>>
+  template<class S> struct bsp_vertex_traits<Vertex<S>>
   {
     typedef const std::array<S, 3> & position_type;
 
-    static position_type getPosition(const std::deque<Vertex<S>> & v, size_t i)
+    static position_type getPosition(const Vertex<S> & v)
     {
-      return v[i].pos;
+      return v.pos;
     }
-    static size_t addInterpolatedVertex(std::deque<Vertex<S>> & dest, size_t a, size_t b, double i)
+    static Vertex<S> getInterpolatedVertex(const Vertex<S> & a, const Vertex<S> & b, S i)
     {
       using boost::qvm::operator+;
       using boost::qvm::operator*;
 
-      auto pos  = dest[a].pos*(1-i) + dest[b].pos*i;
-      size_t res = dest.size();
-      dest.emplace_back(boost::qvm::X(pos), boost::qvm::Y(pos), boost::qvm::Z(pos));
-      return res;
+      auto pos  = a.pos*(1-i) + b.pos*i;
+      return Vertex<S>(boost::qvm::X(pos), boost::qvm::Y(pos), boost::qvm::Z(pos));
     }
   };
 }
@@ -87,8 +85,10 @@ int main()
     {1.5, 0.5, 0.5},{1.5, 1.5, 1.5},{1.5, 1.5, 0.5},    {1.5, 0.5, 0.5}, {1.5, 0.5, 1.5}, {1.5, 1.5, 1.5},
   };
 
+  std::deque<uint16_t> indices(v3.size());
+  for (size_t i = 0; i < indices.size(); i++) indices[i] = i;
 
-  bsp::BspTree<std::deque<Vertex<double>>, uint16_t, 4, double> bsp3(std::move(v3));
+  bsp::BspTree<std::deque<Vertex<double>>, std::deque<uint16_t>, 4, double> bsp3(std::move(v3), indices);
 
   auto a3 = bsp3.sort({-5, 5, 5});
 

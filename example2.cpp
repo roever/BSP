@@ -3,6 +3,7 @@
 #include <boost/qvm/vec_access.hpp>
 #include <boost/qvm/vec_traits_array.hpp>
 
+#include <vector>
 
 // similar to example 1 but this time we directly use qvm::vert as type to avoid
 // registering the return type... probably the best solution if you can do it
@@ -19,20 +20,18 @@ struct Vertex
 
 namespace bsp {
 
-  template <> struct bsp_traits<std::vector<Vertex>>
+  template <> struct bsp_vertex_traits<Vertex>
   {
     typedef const boost::qvm::vec<float, 3> & position_type;
-    static position_type getPosition(const std::vector<Vertex> & v, size_t i)
+    static position_type getPosition(const Vertex & v)
     {
-      return v[i].pos;
+      return v.pos;
     }
-    static size_t addInterpolatedVertex(std::vector<Vertex> & dest, size_t a, size_t b, float i)
+    static Vertex getInterpolatedVertex(const Vertex & a, const Vertex & b, float i)
     {
       using boost::qvm::operator+;
       using boost::qvm::operator*;
-      size_t res = dest.size();
-      dest.emplace_back(dest[a].pos*(1-i) + dest[b].pos*i);
-      return res;
+      return Vertex(a.pos*(1-i) + b.pos*i);
     }
   };
 }
@@ -59,10 +58,12 @@ int main()
     {1.5, 0.5, 0.5},{1.5, 1.5, 1.5},{1.5, 1.5, 0.5},    {1.5, 0.5, 0.5}, {1.5, 0.5, 1.5}, {1.5, 1.5, 1.5},
   };
 
+  std::vector<uint8_t> indices(v2.size());
+  for (size_t i = 0; i < indices.size(); i++) indices[i] = i;
 
   // as we know that we only have very few vertices, we use uint8_t indices this time... this limits us
   // to 256 vertices though but saves some memory and would require less upload to the GPU
-  bsp::BspTree<std::vector<Vertex>, uint8_t> bsp2(std::move(v2));
+  bsp::BspTree<std::vector<Vertex>, std::vector<uint8_t>> bsp2(std::move(v2), indices);
 
   auto a2 = bsp2.sort({-5, 5, 5});
 }

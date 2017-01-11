@@ -5,7 +5,6 @@
 #include <memory>
 #include <limits>
 #include <cmath>
-#include <vector>
 
 #include <boost/qvm/vec.hpp>
 #include <boost/qvm/vec_operations.hpp>
@@ -17,8 +16,20 @@ namespace qvm=boost::qvm;
 /// specialize these 2 templates for your type V that you use within the bsp tree
 /// VertexReturnType represents the type of the getPosition function
 /// try to use a reference and it can be const
-template <class V> struct bsp_traits;
+template <class V> struct bsp_vertex_traits;
 
+template<class V> struct bsp_container_traits
+{
+  typedef typename V::value_type value_type;
+  static auto get(const V & v, size_t i) { return v[i]; }
+  template <class F>
+  static size_t appendInterpolate(V & v, size_t a, size_t b, F f)
+  {
+    size_t res = v.size();
+    v.emplace_back(bsp_vertex_traits<value_type>::getInterpolatedVertex(v[a], v[b], f));
+    return res;
+  }
+};
 
 /// A class for a bsp-Tree. The tree is meant for OpenGL usage. You input a vertex array and the tree will sort
 /// them in order from back to front so that you can draw transparency properly
@@ -43,7 +54,7 @@ template <class V> struct bsp_traits;
 ///      the scale of your object, E=0 mans 1, E=1 0.1, E=2 0.01 and so on, if the vertex is less than tat amount away from
 ///      a plane it will be considered on the plane
 /// \tpar F the floating point type used for internal position representation
-template <class V, class I, int E = 4, class F = float>
+template <class C, class I, int E = 4, class F = float>
 class BspTree
 {
   private:
@@ -84,7 +95,7 @@ class BspTree
     // type for the node of the bsp-tree
     typedef struct Node {
       std::tuple<qvm::vec<F, 3>, F> plane; // the plane that intersects the space
-      std::vector<I> triangles; // the triangles that are on this plane
+      I triangles; // the triangles that are on this plane
       std::unique_ptr<struct Node> behind; // all that is behind the plane (relative to normal of plane)
       std::unique_ptr<struct Node> infront; // all that is in front of the plane
     } Node;
@@ -93,14 +104,17 @@ class BspTree
     std::unique_ptr<Node> root_;
 
     // the vertices within the tree
-    V vertices_;
+    C vertices_;
+
+    using vertex_type=typename bsp_container_traits<C>::value_type;
+    using index_type=typename bsp_container_traits<I>::value_type;
 
     // calculate the plane in hessian normal form for the triangle with the indices given in the triple p
     std::tuple<qvm::vec<F, 3>, F> calculatePlane(int a, int b, int c)
     {
-      auto p1 = bsp_traits<V>::getPosition(vertices_, a);
-      auto p2 = bsp_traits<V>::getPosition(vertices_, b);
-      auto p3 = bsp_traits<V>::getPosition(vertices_, c);
+      auto p1 = bsp_vertex_traits<vertex_type>::getPosition(bsp_container_traits<C>::get(vertices_, a));
+      auto p2 = bsp_vertex_traits<vertex_type>::getPosition(bsp_container_traits<C>::get(vertices_, b));
+      auto p3 = bsp_vertex_traits<vertex_type>::getPosition(bsp_container_traits<C>::get(vertices_, c));
 
       using boost::qvm::operator-;
       qvm::vec<F, 3> norm = qvm::normalized(qvm::cross(qvm::vref(p2)-p1, qvm::vref(p3)-p1));
@@ -109,7 +123,7 @@ class BspTree
       return std::make_tuple(norm, p);
     }
 
-    void append(std::vector<I> & v, I v1, I v2, I v3)
+    void append(I & v, index_type v1, index_type v2, index_type v3)
     {
       v.push_back(v1);
       v.push_back(v2);
@@ -121,10 +135,10 @@ class BspTree
     // when needed triangles are split and the part triangles are added to the proper lists
     void separateTriangles(
         int pivot,
-        const std::vector<I> indices,
-        std::vector<I> & behind,
-        std::vector<I> & infront,
-        std::vector<I> & onPlane)
+        const I & indices,
+        I & behind,
+        I & infront,
+        I & onPlane)
     {
       auto plane = calculatePlane(indices[pivot], indices[pivot+1], indices[pivot+2]);
 
@@ -132,26 +146,26 @@ class BspTree
       {
         std::array<F, 3> dist
         {
-          distance(plane, bsp_traits<V>::getPosition(vertices_, indices[i  ])),
-          distance(plane, bsp_traits<V>::getPosition(vertices_, indices[i+1])),
-          distance(plane, bsp_traits<V>::getPosition(vertices_, indices[i+2]))
+          distance(plane, bsp_vertex_traits<vertex_type>::getPosition(bsp_container_traits<C>::get(vertices_, indices[i  ]))),
+          distance(plane, bsp_vertex_traits<vertex_type>::getPosition(bsp_container_traits<C>::get(vertices_, indices[i+1]))),
+          distance(plane, bsp_vertex_traits<vertex_type>::getPosition(bsp_container_traits<C>::get(vertices_, indices[i+2])))
         };
 
         std::array<int, 3> side { sign(dist[0]), sign(dist[1]), sign(dist[2]) };
 
-        std::array<I, 3> A;
+        std::array<index_type, 3> A;
 
         if (side[0] * side[1] == -1)
         {
-          A[0] = bsp_traits<V>::addInterpolatedVertex(vertices_, indices[i  ], indices[i+1], relation(dist[0], dist[1]));
+          A[0] = bsp_container_traits<C>::appendInterpolate(vertices_, indices[i  ], indices[i+1], relation(dist[0], dist[1]));
         }
         if (side[1] * side[2] == -1)
         {
-          A[1] = bsp_traits<V>::addInterpolatedVertex(vertices_, indices[i+1], indices[i+2], relation(dist[1], dist[2]));
+          A[1] = bsp_container_traits<C>::appendInterpolate(vertices_, indices[i+1], indices[i+2], relation(dist[1], dist[2]));
         }
         if (side[2] * side[0] == -1)
         {
-          A[2] = bsp_traits<V>::addInterpolatedVertex(vertices_, indices[i+2], indices[i  ], relation(dist[2], dist[0]));
+          A[2] = bsp_container_traits<C>::appendInterpolate(vertices_, indices[i+2], indices[i  ], relation(dist[2], dist[0]));
         }
 
         switch (splitType(side[0], side[1], side[2]))
@@ -252,7 +266,7 @@ class BspTree
 
     // check what would happen if the plane of pivot is used as a cutting plane for the triangles in indices
     // returns the number of triangles that would end up on the plane of pivot, behind it or in front of it
-    std::tuple<int, int, int> evaluatePivot(int pivot, const std::vector<I> & indices)
+    std::tuple<int, int, int> evaluatePivot(int pivot, const I & indices)
     {
       int cut = 0;
       int behind = 0;
@@ -265,9 +279,9 @@ class BspTree
       {
         std::array<F, 3> dist
         {
-          distance(plane, bsp_traits<V>::getPosition(vertices_, i  )),
-          distance(plane, bsp_traits<V>::getPosition(vertices_, i+1)),
-          distance(plane, bsp_traits<V>::getPosition(vertices_, i+2))
+          distance(plane, bsp_vertex_traits<vertex_type>::getPosition(bsp_container_traits<C>::get(vertices_, i  ))),
+          distance(plane, bsp_vertex_traits<vertex_type>::getPosition(bsp_container_traits<C>::get(vertices_, i+1))),
+          distance(plane, bsp_vertex_traits<vertex_type>::getPosition(bsp_container_traits<C>::get(vertices_, i+2)))
         };
 
         std::array<int, 3> side { sign(dist[0]), sign(dist[1]), sign(dist[2]) };
@@ -331,7 +345,7 @@ class BspTree
     // pointer to the root of the tree
     // the function cooses a cutting plane and recursively recursively calls itself with
     // the lists of triangles that are behind and in front of the choosen plane
-    std::unique_ptr<Node> makeTree(const std::vector<I> & indices)
+    std::unique_ptr<Node> makeTree(const I & indices)
     {
       if (indices.size() > 0)
       {
@@ -374,7 +388,7 @@ class BspTree
 
         auto node = std::make_unique<Node>();
 
-        std::vector<I> behind, infront;
+        I behind, infront;
 
         separateTriangles(best, indices, behind, infront, node->triangles);
 
@@ -392,7 +406,7 @@ class BspTree
 
     // sort the triangles in the tree into the out vector so that triangles far from p are
     // in front of the output vector
-    void sortBackToFront(const qvm::vec<F, 3> & p, const Node * n, std::vector<I> & out)
+    void sortBackToFront(const qvm::vec<F, 3> & p, const Node * n, I & out)
     {
       if (!n) return;
 
@@ -419,29 +433,7 @@ class BspTree
     // as balancing is good for creation but not important for the more
     // sort functionality
     // vertices in input array are taken as groups of 3 forming one triangle
-    BspTree(V && vertices) : vertices_(std::move(vertices))
-    {
-      size_t n = vertices_.size()-2;
-      I i = 0;
-
-      std::vector<I> indices;
-
-      while (i < n)
-      {
-        indices.push_back(i++);
-        indices.push_back(i++);
-        indices.push_back(i++);
-      }
-
-      root_ = makeTree(indices);
-    }
-
-    /// same as the other constructor but this time you need to provide the indices
-    /// as well, make sure, that your indices don't overstep the
-    /// size of the vertives vector and also make sure that the number
-    /// of elements in indices is divisible by 3. Each group of
-    /// 3 elements in indices is the 3 vertices of one triangle
-    BspTree(V && vertices, const std::vector<I> & indices) : vertices_(std::move(vertices))
+    BspTree(C && vertices, const I & indices) : vertices_(std::move(vertices))
     {
       root_ = makeTree(indices);
     }
@@ -449,15 +441,15 @@ class BspTree
     /// because it might be necessary to split the polygons
     /// in the list given, this list of vertices might be longer
     /// than the one initially given
-    const V & getVertices() const { return vertices_; }
+    const C & getVertices() const { return vertices_; }
 
     /// get the index list of vertices to draw in the right order
     /// from back to fron relative ot the position given in p
-    std::vector<I> sort(const qvm::vec<F, 3> & p)
+    I sort(const qvm::vec<F, 3> & p)
     {
-      std::vector<I> out;
+      I out;
 
-      if (std::numeric_limits<I>::max() < vertices_.size())
+      if (std::numeric_limits<index_type>::max() < vertices_.size())
       {
         // todo throw expression
       }
