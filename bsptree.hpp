@@ -136,13 +136,9 @@ class BspTree
 
     // separate the triangles within indices into the 3 lists of triangles that are behind, infront and on the
     // plane of the triangle given in pivot
-    // when needed triangles are split and the part triangles are added to the proper lists
-    void separateTriangles(
-        int pivot,
-        const I & indices,
-        I & behind,
-        I & infront,
-        I & onPlane)
+    // when needed triangles are split and the smaller triangles are added to the proper lists
+    // return the plane
+    std::tuple<qvm::vec<F, 3>, F> separateTriangles(size_t pivot, const I & indices, I & behind, I & infront, I & onPlane)
     {
       // get the plane of the pivot triangle
       auto plane = calculatePlane(indices[pivot], indices[pivot+1], indices[pivot+2]);
@@ -284,6 +280,8 @@ class BspTree
 
         }
       }
+
+      return plane;
     }
 
     // check what would happen if the plane of pivot is used as a cutting plane for the triangles in indices
@@ -417,9 +415,8 @@ class BspTree
         // container for the triangle indices for the triangles in front and behind the plane
         I behind, infront;
 
-        separateTriangles(best, indices, behind, infront, node->triangles);
-
-        node->plane = calculatePlane(indices[best], indices[best+1], indices[best+2]);
+        // sort the triangles into the 3 containers
+        node->plane = separateTriangles(best, indices, behind, infront, node->triangles);
         node->behind = makeTree(behind);
         node->infront = makeTree(infront);
 
