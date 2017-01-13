@@ -298,14 +298,12 @@ class BspTree
       // this is a simplification of the algorithm above to just count the numbers of triangles
       for (size_t i = 0; i < indices.size(); i+=3)
       {
-        std::array<F, 3> dist
+        std::array<int, 3> side
         {
-          distance(plane, bsp_vertex_traits<vertex_type>::getPosition(bsp_container_traits<C>::get(vertices_, i  ))),
-          distance(plane, bsp_vertex_traits<vertex_type>::getPosition(bsp_container_traits<C>::get(vertices_, i+1))),
-          distance(plane, bsp_vertex_traits<vertex_type>::getPosition(bsp_container_traits<C>::get(vertices_, i+2)))
+          sign(distance(plane, bsp_vertex_traits<vertex_type>::getPosition(bsp_container_traits<C>::get(vertices_, i  )))),
+          sign(distance(plane, bsp_vertex_traits<vertex_type>::getPosition(bsp_container_traits<C>::get(vertices_, i+1)))),
+          sign(distance(plane, bsp_vertex_traits<vertex_type>::getPosition(bsp_container_traits<C>::get(vertices_, i+2))))
         };
-
-        std::array<int, 3> side { sign(dist[0]), sign(dist[1]), sign(dist[2]) };
 
         switch (splitType(side[0], side[1], side[2]))
         {
