@@ -456,6 +456,25 @@ class BspTree
       }
     }
 
+    template <class P>
+    bool isInside(const P & p, const Node * n)
+    {
+      if (distance(n->plane, p) > 0)
+      {
+          if (n->infront)
+              return isInside(p, n->infront.get());
+          else
+              return true;
+      }
+      else
+      {
+          if (n->behind)
+              return isInside(p, n->behind.get());
+          else
+              return false;
+      }
+    }
+
   public:
 
     /// construct the tree, vertices are taken over, indices not
@@ -487,6 +506,19 @@ class BspTree
       sortBackToFront(p, root_.get(), out);
 
       return out;
+    }
+
+    /// check if a point is inside the polyhedron defined by the bsp-tree or outside of
+    /// it. This only works, when you defined all your triangles in counter clockwise
+    /// fashion when seen from the outside and also none of the polytopes that you add
+    /// to the tree may intersect
+    /// \tpar P type of the position vector, qvm must be able to handle it
+    /// \param p position you want to check
+    /// \return true, when inside of one of the polytopes
+    template <class P>
+    bool isInside(const P & p)
+    {
+        return isInside(p, root_.get());
     }
 };
 
