@@ -108,7 +108,7 @@ int main()
   bsp::BspTree<std::vector<Vertex>, std::vector<uint16_t>> bsp(std::move(v), indices);
 
   // sort when looking from the given position
-  auto a = bsp.sort({-5, 5, 5});
+  auto a = bsp.sort(vec<float, 3>{-5, 5, 5});
 
   // output the resulting mesh as a stl file... we also use qvm here for simpler normal calculation
   printf("solid \n");

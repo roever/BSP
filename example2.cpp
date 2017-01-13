@@ -65,5 +65,5 @@ int main()
   // to 256 vertices though but saves some memory and would require less upload to the GPU
   bsp::BspTree<std::vector<Vertex>, std::vector<uint8_t>> bsp2(std::move(v2), indices);
 
-  auto a2 = bsp2.sort({-5, 5, 5});
+  auto a2 = bsp2.sort(boost::qvm::vec<float, 3>{-5, 5, 5});
 }

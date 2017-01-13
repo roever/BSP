@@ -90,6 +90,6 @@ int main()
 
   bsp::BspTree<std::deque<Vertex<double>>, std::deque<uint16_t>, 4, double> bsp3(std::move(v3), indices);
 
-  auto a3 = bsp3.sort({-5, 5, 5});
+  auto a3 = bsp3.sort(boost::qvm::vec<float, 3>{-5, 5, 5});
 
 }

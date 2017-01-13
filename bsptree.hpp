@@ -429,7 +429,8 @@ class BspTree
 
     // sort the triangles in the tree into the out container so that triangles far from p are
     // in front of the output vector
-    void sortBackToFront(const qvm::vec<F, 3> & p, const Node * n, I & out)
+    template <class P>
+    void sortBackToFront(const P & p, const Node * n, I & out)
     {
       if (!n) return;
 
@@ -465,20 +466,17 @@ class BspTree
     /// get the vertex container
     const C & getVertices() const { return vertices_; }
 
-    /// get the index list of vertices to draw in the right order
-    /// from back to fron relative ot the position given in p
-    I sort(const qvm::vec<F, 3> & p)
+    /// get a container of indices for triangles so that the triangles are sorted
+    /// from back to front when viewed from the given position
+    /// \param p the point from where to look
+    /// \return container of indices into the vertex container
+    template <class P>
+    I sort(const P & p)
     {
       I out;
 
-      if (std::numeric_limits<index_type>::max() < vertices_.size())
-      {
-        // todo throw expression
-      }
-      else
-      {
-        sortBackToFront(p, root_.get(), out);
-      }
+      // TODO do we want to check, if the container elements are big enough?
+      sortBackToFront(p, root_.get(), out);
 
       return out;
     }
