@@ -34,6 +34,14 @@ template<class V> struct bsp_container_traits
     v.emplace_back(bsp_vertex_traits<value_type>::getInterpolatedVertex(v[a], v[b], f));
     return res;
   }
+  static void append(V & v, const value_type & val)
+  {
+    v.push_back(val);
+  }
+  static void append(V & v, const V & v2)
+  {
+    v.insert(v.end(), v2.begin(), v2.end());
+  }
 };
 
 /// A class for a bsp-Tree. The tree is meant for OpenGL usage. You input container of vertices and
@@ -129,9 +137,9 @@ class BspTree
     // append indices for a triangle to the index container
     void append(I & v, index_type v1, index_type v2, index_type v3)
     {
-      v.push_back(v1);
-      v.push_back(v2);
-      v.push_back(v3);
+      bsp_container_traits<I>::append(v, v1);
+      bsp_container_traits<I>::append(v, v2);
+      bsp_container_traits<I>::append(v, v3);
     }
 
     // separate the triangles within indices into the 3 lists of triangles that are behind, infront and on the
@@ -437,7 +445,7 @@ class BspTree
       if (distance(n->plane, p) < 0)
       {
         sortBackToFront(p, n->infront.get(), out);
-        out.insert(out.end(), n->triangles.begin(), n->triangles.end());
+        bsp_container_traits<I>::append(out, n->triangles);
         sortBackToFront(p, n->behind.get(), out);
       }
       else
