@@ -477,6 +477,20 @@ class BspTree
       }
     }
 
+    void reCalculatePlanes(Node * n)
+    {
+        // recalculate plane for this node with the first triangle on this plane
+        n->plane = calculatePlane(
+                bsp_container_traits<I>::get(n->triangles, 0),
+                bsp_container_traits<I>::get(n->triangles, 1),
+                bsp_container_traits<I>::get(n->triangles, 2)
+                );
+
+        // do the two subtrees
+        if (n->infront) return reCalculatePlanes(n->infront.get());
+        if (n->behind) return reCalculatePlanes(n->behind.get());
+    }
+
   public:
 
     /// construct the tree, vertices are taken over, indices not
@@ -521,6 +535,23 @@ class BspTree
     bool isInside(const P & p)
     {
         return isInside(p, root_.get());
+    }
+
+    /// transform the polygon that this tree describes by the given matrix
+    /// \tpar M matrix type, you have to be able to handle whit matrix
+    ///       in the bsp_vertex_traits::transform function, otherwise you can use
+    ///       whatever you want
+    template <class M>
+    void transform(const M & m)
+    {
+        // transform all vertices
+        for (auto & v : vertices_)
+        {
+            bsp_vertex_traits<vertex_type>::transform(v, m);
+        }
+
+        // traverse tree and re-calculate all planes
+        reCalculatePlanes(root_.get());
     }
 };
 

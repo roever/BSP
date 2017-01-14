@@ -2,6 +2,11 @@
 
 #include <boost/qvm/vec_access.hpp>
 #include <boost/qvm/vec_traits_array.hpp>
+#include <boost/qvm/vec_mat_operations.hpp>
+#include <boost/qvm/mat.hpp>
+#include <boost/qvm/mat_operations.hpp>
+#include <boost/qvm/swizzle.hpp>
+#include <boost/qvm/map_vec_mat.hpp>
 
 #include <deque>
 
@@ -58,6 +63,15 @@ namespace bsp {
       auto pos  = a.pos*(1-i) + b.pos*i;
       return Vertex<S>(boost::qvm::X(pos), boost::qvm::Y(pos), boost::qvm::Z(pos));
     }
+
+    static void transform(Vertex<S> & v, const boost::qvm::mat<S, 4, 4> & m)
+    {
+      boost::qvm::vec<S, 4> pp = boost::qvm::XYZ1(v.pos);
+
+      pp = m * pp;
+      pp /= boost::qvm::W(pp);
+      v.pos = boost::qvm::XYZ(pp);
+    }
   };
 }
 
@@ -66,14 +80,14 @@ int main()
   // Example 3
 
   std::deque<Vertex<double>> v3 {
-    {0, 0, 0},{1, 0, 0},{1, 1, 0},    {0, 0, 0}, {1, 1, 0}, {0, 1, 0},
-    {0, 0, 1},{1, 1, 1},{1, 0, 1},    {0, 0, 1}, {0, 1, 1}, {1, 1, 1},
+    {0, 0, 1},{1, 0, 1},{1, 1, 1},    {0, 0, 1}, {1, 1, 1}, {0, 1, 1},
+    {0, 0, 0},{1, 1, 0},{1, 0, 0},    {0, 0, 0}, {0, 1, 0}, {1, 1, 0},
 
-    {0, 0, 0},{1, 0, 1},{1, 0, 0},    {0, 0, 0}, {0, 0, 1}, {1, 0, 1},
-    {0, 1, 0},{1, 1, 0},{1, 1, 1},    {0, 1, 0}, {1, 1, 1}, {0, 1, 1},
+    {0, 1, 0},{1, 1, 1},{1, 1, 0},    {0, 1, 0}, {0, 1, 1}, {1, 1, 1},
+    {0, 0, 0},{1, 0, 0},{1, 0, 1},    {0, 0, 0}, {1, 0, 1}, {0, 0, 1},
 
-    {0, 0, 0},{0, 1, 0},{0, 1, 1},    {0, 0, 0}, {0, 1, 1}, {0, 0, 1},
-    {1, 0, 0},{1, 1, 1},{1, 1, 0},    {1, 0, 0}, {1, 0, 1}, {1, 1, 1},
+    {1, 0, 0},{1, 1, 0},{1, 1, 1},    {1, 0, 0}, {1, 1, 1}, {1, 0, 1},
+    {0, 0, 0},{0, 1, 1},{0, 1, 0},    {0, 0, 0}, {0, 0, 1}, {0, 1, 1},
   };
 
   std::deque<uint16_t> indices(v3.size());
@@ -85,4 +99,9 @@ int main()
 
   if (bsp3.isInside(boost::qvm::vec<float, 3>{-5, 5, 5})) printf("oops 1\n");
   if (!bsp3.isInside(boost::qvm::vec<float, 3>{0.5, 0.5, 0.5})) printf("oops 3\n");
+
+  bsp3.transform(boost::qvm::translation_mat(boost::qvm::vec<double,3>{0.5, 0.5, 1}));
+
+  if (bsp3.isInside(boost::qvm::vec<float, 3>{1, 1, 0.5})) printf("oops 4\n");
+  if (!bsp3.isInside(boost::qvm::vec<float, 3>{1, 1, 1.5})) printf("oops 5\n");
 }
