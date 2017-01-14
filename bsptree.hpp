@@ -451,7 +451,7 @@ class BspTree
       else
       {
         sortBackToFront(p, n->behind.get(), out);
-        out.insert(out.end(), n->triangles.begin(), n->triangles.end());
+        bsp_container_traits<I>::append(out, n->triangles);
         sortBackToFront(p, n->infront.get(), out);
       }
     }
