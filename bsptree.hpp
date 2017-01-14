@@ -81,7 +81,7 @@ class BspTree
     template <class T>
     F distance(const std::tuple<qvm::vec<F, 3>, F> & plane, const T & t)
     {
-      return qvm::dot(std::get<0>(plane), t) + std::get<1>(plane);
+      return qvm::dot(std::get<0>(plane), t) - std::get<1>(plane);
     }
 
     // the epsilon value for diciding if a point is on a plane
@@ -129,7 +129,7 @@ class BspTree
 
       using boost::qvm::operator-;
       qvm::vec<F, 3> norm = qvm::normalized(qvm::cross(qvm::vref(p2)-p1, qvm::vref(p3)-p1));
-      F p = -dot(norm, p1);
+      F p = dot(norm, p1);
 
       return std::make_tuple(norm, p);
     }
@@ -459,17 +459,19 @@ class BspTree
     template <class P>
     bool isInside(const P & p, const Node * n)
     {
-      if (distance(n->plane, p) > 0)
+      F dist = distance(n->plane, p);
+
+      if (dist < 0)
       {
-          if (n->infront)
-              return isInside(p, n->infront.get());
+          if (n->behind)
+              return isInside(p, n->behind.get());
           else
               return true;
       }
       else
       {
-          if (n->behind)
-              return isInside(p, n->behind.get());
+          if (n->infront)
+              return isInside(p, n->infront.get());
           else
               return false;
       }
