@@ -75,6 +75,36 @@ namespace bsp {
   };
 }
 
+template <class B>
+void printSTL(const B & b)
+{
+  using namespace boost::qvm;
+
+  auto a = b.sort(vec<float, 3>{-5, 5, 5});
+
+  // output the resulting mesh as a stl file... we also use qvm here for simpler normal calculation
+  printf("solid \n");
+
+  for (size_t i = 0; i < a.size(); i += 3)
+  {
+    const auto v1 = bsp::bsp_vertex_traits<typename B::vertex_type>::getPosition(b.getVertices()[a[i  ]]);
+    const auto v2 = bsp::bsp_vertex_traits<typename B::vertex_type>::getPosition(b.getVertices()[a[i+1]]);
+    const auto v3 = bsp::bsp_vertex_traits<typename B::vertex_type>::getPosition(b.getVertices()[a[i+2]]);
+
+    auto n = cross(vref(v2)-v1, vref(v3)-v1);
+
+    printf("facet normal %f %f %f\n", X(n), Y(n), Z(n));
+    printf("  outer loop\n");
+    printf("    vertex %f %f %f\n", X(v1), Y(v1), Z(v1));
+    printf("    vertex %f %f %f\n", X(v2), Y(v2), Z(v2));
+    printf("    vertex %f %f %f\n", X(v3), Y(v3), Z(v3));
+    printf("  endloop\n");
+    printf("endfacet\n");
+  }
+
+  printf("endsolid\n");
+}
+
 int main()
 {
   // Example 3
@@ -90,18 +120,40 @@ int main()
     {0, 0, 0},{0, 1, 1},{0, 1, 0},    {0, 0, 0}, {0, 0, 1}, {0, 1, 1},
   };
 
+
+  std::deque<Vertex<double>> v1 {
+    {0, 0, 1},{1, 0, 1},{1, 2, 1},    {0, 0, 1}, {1, 2, 1}, {0, 2, 1},
+    {0, 0, 0},{1, 2, 0},{1, 0, 0},    {0, 0, 0}, {0, 2, 0}, {1, 2, 0},
+
+    {0, 2, 0},{1, 2, 1},{1, 2, 0},    {0, 2, 0}, {0, 2, 1}, {1, 2, 1},
+    {0, 0, 0},{1, 0, 0},{1, 0, 1},    {0, 0, 0}, {1, 0, 1}, {0, 0, 1},
+
+    {1, 0, 0},{1, 2, 0},{1, 2, 1},    {1, 0, 0}, {1, 2, 1}, {1, 0, 1},
+    {0, 0, 0},{0, 2, 1},{0, 2, 0},    {0, 0, 0}, {0, 0, 1}, {0, 2, 1},
+  };
+
   std::deque<uint16_t> indices(v3.size());
   for (size_t i = 0; i < indices.size(); i++) indices[i] = i;
 
-  bsp::BspTree<std::deque<Vertex<double>>, std::deque<uint16_t>, 4, double> bsp3(std::move(v3), indices);
+  bsp::BspTree<std::deque<Vertex<double>>, std::deque<uint16_t>, 4, double> bsp1(std::deque<Vertex<double>>(v1), indices);
+  bsp::BspTree<std::deque<Vertex<double>>, std::deque<uint16_t>, 4, double> bsp3(std::deque<Vertex<double>>(v3), indices);
 
   auto a3 = bsp3.sort(boost::qvm::vec<float, 3>{-5, 5, 5});
 
   if (bsp3.isInside(boost::qvm::vec<float, 3>{-5, 5, 5})) printf("oops 1\n");
   if (!bsp3.isInside(boost::qvm::vec<float, 3>{0.5, 0.5, 0.5})) printf("oops 3\n");
 
-  bsp3.transform(boost::qvm::translation_mat(boost::qvm::vec<double,3>{0.5, 0.5, 1}));
+  bsp3.transform(boost::qvm::translation_mat(boost::qvm::vec<double,3>{-0.5, -0.5, -0.5}));
+  bsp3.transform(boost::qvm::rot_mat<4>(boost::qvm::vec<double,3>{-0.5, -0.5, -0.5}, 1.0));
+//  bsp3.transform(boost::qvm::translation_mat(boost::qvm::vec<double,3>{1.5, 1.5, 1.5}));
 
   if (bsp3.isInside(boost::qvm::vec<float, 3>{1, 1, 0.5})) printf("oops 4\n");
   if (!bsp3.isInside(boost::qvm::vec<float, 3>{1, 1, 1.5})) printf("oops 5\n");
+
+  auto u = bsp1.unify(bsp1, bsp3);
+//  auto u = bsp1.intersect(bsp1, bsp3);
+//  auto u = bsp1.subtract(bsp1, bsp3);
+//  auto u = bsp1.subtract(bsp3, bsp1);
+
+  printSTL(u);
 }
