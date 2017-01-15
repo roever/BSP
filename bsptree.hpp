@@ -390,7 +390,9 @@ class BspTree
         std::tuple<int, int, int> pivot = evaluatePivot(0, indices);
         size_t best = 0;
 
-        for (size_t i = 3; i < bsp_container_traits<I>::getSize(indices); i+=3)
+        // the loop is done in a way that ignores indices at the end that
+        // don't result in a triangle any more
+        for (size_t i = 3; i+2 < bsp_container_traits<I>::getSize(indices); i+=3)
         {
           auto newPivot = evaluatePivot(i, indices);
 
