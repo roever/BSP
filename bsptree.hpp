@@ -512,6 +512,21 @@ class BspTree
       root_ = makeTree(indices);
     }
 
+
+    /// another constructor that assumes that the vertices given are grouped in
+    /// triples that each represents one triangle
+    BspTree(C && vertices) : vertices_(std::move(vertices))
+    {
+      I indices;
+
+      for (size_t i = 0; i < bsp_container_traits<C>::getSize(vertices_); i++)
+      {
+        bsp_container_traits<I>::append(indices, i);
+      }
+
+      root_ = makeTree(indices);
+    }
+
     /// get the vertex container
     const C & getVertices() const { return vertices_; }
 
