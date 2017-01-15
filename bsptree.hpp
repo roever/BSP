@@ -42,6 +42,10 @@ template<class V> struct bsp_container_traits
   {
     v.insert(v.end(), v2.begin(), v2.end());
   }
+  static size_t getSize(const V & v)
+  {
+    return v.size();
+  }
 };
 
 /// A class for a bsp-Tree. The tree is meant for OpenGL usage. You input container of vertices and
@@ -154,7 +158,7 @@ class BspTree
       auto plane = calculatePlane(indices[pivot], indices[pivot+1], indices[pivot+2]);
 
       // go over all triangles and separate them
-      for (size_t i = 0; i < indices.size(); i+=3)
+      for (size_t i = 0; i < bsp_container_traits<I>::getSize(indices); i+=3)
       {
         // calculate distance of the 3 vertices from the choosen partitioning plane
         std::array<F, 3> dist
@@ -386,7 +390,7 @@ class BspTree
         std::tuple<int, int, int> pivot = evaluatePivot(0, indices);
         size_t best = 0;
 
-        for (size_t i = 3; i < indices.size(); i+=3)
+        for (size_t i = 3; i < bsp_container_traits<I>::getSize(indices); i+=3)
         {
           auto newPivot = evaluatePivot(i, indices);
 
