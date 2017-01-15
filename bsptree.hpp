@@ -79,7 +79,7 @@ class BspTree
 
     // calculate distance of a point from a plane
     template <class T>
-    F distance(const std::tuple<qvm::vec<F, 3>, F> & plane, const T & t)
+    F distance(const std::tuple<qvm::vec<F, 3>, F> & plane, const T & t) const
     {
       return qvm::dot(std::get<0>(plane), t) - std::get<1>(plane);
     }
@@ -88,7 +88,7 @@ class BspTree
     const F epsilon = std::pow(0.1, E);
 
     // calculate the sign of a number,
-    int sign(F i)
+    int sign(F i) const
     {
       if (i >  epsilon) return 1;
       if (i < -epsilon) return -1;
@@ -97,7 +97,7 @@ class BspTree
 
     // calculate relative position of a point along a line which is a
     // units from one and b units from the other
-    F relation(F a, F b)
+    F relation(F a, F b) const
     {
       return std::abs(a) / ( std::abs(a) + std::abs(b) );
     }
@@ -438,7 +438,7 @@ class BspTree
     // sort the triangles in the tree into the out container so that triangles far from p are
     // in front of the output vector
     template <class P>
-    void sortBackToFront(const P & p, const Node * n, I & out)
+    void sortBackToFront(const P & p, const Node * n, I & out) const
     {
       if (!n) return;
 
@@ -514,7 +514,7 @@ class BspTree
     /// \param p the point from where to look
     /// \return container of indices into the vertex container
     template <class P>
-    I sort(const P & p)
+    I sort(const P & p) const
     {
       I out;
 
