@@ -497,6 +497,189 @@ class BspTree
         if (n->behind) return reCalculatePlanes(n->behind.get());
     }
 
+    // append vertices
+    void append(C & v, const vertex_type & v1, const vertex_type & v2, const vertex_type & v3) const
+    {
+      bsp_container_traits<C>::append(v, v1);
+      bsp_container_traits<C>::append(v, v2);
+      bsp_container_traits<C>::append(v, v3);
+    }
+
+    // assumes, that the node is not empty
+    void classifyTriangle(const Node * n, const vertex_type & v1, const vertex_type & v2, const vertex_type & v3, bool inside, bool keepEdge, C & out, bool keepNow) const
+    {
+      if (!n)
+      {
+        if (keepNow)
+        {
+          append(out, v1, v2, v3);
+        }
+
+        return;
+      }
+
+
+      // this is again a variation of the code in separateTriangles
+
+      // calculate distance of the 3 vertices from the choosen partitioning plane
+      std::array<F, 3> dist
+      {
+        distance(n->plane, bsp_vertex_traits<vertex_type>::getPosition(v1)),
+        distance(n->plane, bsp_vertex_traits<vertex_type>::getPosition(v2)),
+        distance(n->plane, bsp_vertex_traits<vertex_type>::getPosition(v3))
+      };
+
+      // check on which side of the plane the 3 points are
+      std::array<int, 3> side { sign(dist[0]), sign(dist[1]), sign(dist[2]) };
+
+      C tmp;
+      std::array<index_type, 3> A;
+
+      if (side[0] * side[1] == -1)
+      {
+        A[0] = bsp_container_traits<C>::appendInterpolate(tmp, v1, v2, relation(dist[0], dist[1]));
+      }
+      if (side[1] * side[2] == -1)
+      {
+        A[1] = bsp_container_traits<C>::appendInterpolate(tmp, v2, v3, relation(dist[1], dist[2]));
+      }
+      if (side[2] * side[0] == -1)
+      {
+        A[2] = bsp_container_traits<C>::appendInterpolate(tmp, v3, v1, relation(dist[2], dist[0]));
+      }
+
+      // go over all possible positions of the 3 vertices relative to the plane
+      switch (splitType(side[0], side[1], side[2]))
+      {
+        // all point on one side of the plane (or on the plane)
+        // in this case we simply add the complete trigangle
+        // to the proper halve of the subtree
+        case splitType(-1, -1, -1):
+        case splitType(-1, -1,  0):
+        case splitType(-1,  0, -1):
+        case splitType(-1,  0,  0):
+        case splitType( 0, -1, -1):
+        case splitType( 0, -1,  0):
+        case splitType( 0,  0, -1):
+          classifyTriangle(n->behind.get(), v1, v2, v3, inside, keepEdge, out, inside);
+          break;
+
+        case splitType( 0,  0,  1):
+        case splitType( 0,  1,  0):
+        case splitType( 0,  1,  1):
+        case splitType( 1,  0,  0):
+        case splitType( 1,  0,  1):
+        case splitType( 1,  1,  0):
+        case splitType( 1,  1,  1):
+          classifyTriangle(n->infront.get(), v1, v2, v3, inside, keepEdge, out, !inside);
+          break;
+
+        // triangle on the dividing plane
+        case splitType( 0,  0,  0):
+          if (keepEdge)
+          {
+            append(out, v1, v2, v3);
+          }
+          break;
+
+        // and now all the ways that the triangle can be cut by the plane
+        case splitType( 1, -1,  0):
+          classifyTriangle(n->behind.get(),  v2, v3, tmp[A[0]], inside, keepEdge, out, inside);
+          classifyTriangle(n->infront.get(), v3, v1, tmp[A[0]], inside, keepEdge, out, !inside);
+          break;
+
+        case splitType(-1,  0,  1):
+          classifyTriangle(n->behind.get(),  v1, v2, tmp[A[2]], inside, keepEdge, out, inside);
+          classifyTriangle(n->infront.get(), v2, v3, tmp[A[2]], inside, keepEdge, out, !inside);
+          break;
+
+        case splitType( 0,  1, -1):
+          classifyTriangle(n->behind.get(),  v3, v1, tmp[A[1]], inside, keepEdge, out, inside);
+          classifyTriangle(n->infront.get(), v1, v2, tmp[A[1]], inside, keepEdge, out, !inside);
+          break;
+
+        case splitType(-1,  1,  0):
+          classifyTriangle(n->behind.get(),  v3, v1, tmp[A[0]], inside, keepEdge, out, inside);
+          classifyTriangle(n->infront.get(), v2, v3, tmp[A[0]], inside, keepEdge, out, !inside);
+          break;
+
+        case splitType( 1,  0, -1):
+          classifyTriangle(n->behind.get(),  v2, v3, tmp[A[2]], inside, keepEdge, out, inside);
+          classifyTriangle(n->infront.get(), v1, v2, tmp[A[2]], inside, keepEdge, out, !inside);
+          break;
+
+        case splitType( 0, -1,  1):
+          classifyTriangle(n->behind.get(),  v1, v2, tmp[A[1]], inside, keepEdge, out, inside);
+          classifyTriangle(n->infront.get(), v3, v1, tmp[A[1]], inside, keepEdge, out, !inside);
+          break;
+
+        case splitType( 1, -1, -1):
+          classifyTriangle(n->infront.get(), v1, tmp[A[0]], tmp[A[2]], inside, keepEdge, out, !inside);
+          classifyTriangle(n->behind.get(),  v2, tmp[A[2]], tmp[A[0]], inside, keepEdge, out, inside);
+          classifyTriangle(n->behind.get(),  v2, v3,        tmp[A[2]], inside, keepEdge, out, inside);
+          break;
+
+        case splitType(-1,  1, -1):
+          classifyTriangle(n->infront.get(), v2, tmp[A[1]], tmp[A[0]], inside, keepEdge, out, !inside);
+          classifyTriangle(n->behind.get(),  v3, tmp[A[0]], tmp[A[1]], inside, keepEdge, out, inside);
+          classifyTriangle(n->behind.get(),  v3, v1,        tmp[A[0]], inside, keepEdge, out, inside);
+          break;
+
+        case splitType(-1, -1,  1):
+          classifyTriangle(n->infront.get(), v3, tmp[A[2]], tmp[A[1]], inside, keepEdge, out, !inside);
+          classifyTriangle(n->behind.get(),  v1, tmp[A[1]], tmp[A[2]], inside, keepEdge, out, inside);
+          classifyTriangle(n->behind.get(),  v1, v2,        tmp[A[1]], inside, keepEdge, out, inside);
+          break;
+
+        case splitType(-1,  1,  1):
+          classifyTriangle(n->behind.get(),  v1, tmp[A[0]], tmp[A[2]], inside, keepEdge, out, inside);
+          classifyTriangle(n->infront.get(), v2, tmp[A[2]], tmp[A[0]], inside, keepEdge, out, !inside);
+          classifyTriangle(n->infront.get(), v2, v3,        tmp[A[2]], inside, keepEdge, out, !inside);
+          break;
+
+        case splitType( 1, -1,  1):
+          classifyTriangle(n->behind.get(),  v2, tmp[A[1]], tmp[A[0]], inside, keepEdge, out, inside);
+          classifyTriangle(n->infront.get(), v1, tmp[A[0]], tmp[A[1]], inside, keepEdge, out, !inside);
+          classifyTriangle(n->infront.get(), v3, v1,        tmp[A[1]], inside, keepEdge, out, !inside);
+          break;
+
+        case splitType( 1,  1, -1):
+          classifyTriangle(n->behind.get(),  v3, tmp[A[2]], tmp[A[1]], inside, keepEdge, out, inside);
+          classifyTriangle(n->infront.get(), v1, tmp[A[1]], tmp[A[2]], inside, keepEdge, out, !inside);
+          classifyTriangle(n->infront.get(), v1, v2,        tmp[A[1]], inside, keepEdge, out, !inside);
+          break;
+      }
+    }
+
+    // classify the triangles of the tree given as parameter and keep the
+    // polygons that are choosen and put them into out vector
+    // tree: tree to classify
+    // inside: true: keep inside polygons, else keep outside polygons
+    //    when inside polygons are kept they are automatically flipped
+    // keepEdge: keep faces that are on the edge of the other polyhedron
+    // out: where to put the triangles
+    void classifyTree(const Node * tree, const C & vertices, bool inside, bool keepEdge, C & out) const
+    {
+      if (tree)
+      {
+        size_t i = 0;
+        size_t s = bsp_container_traits<I>::getSize(tree->triangles);
+        while (i+2 < s)
+        {
+          auto v1 = bsp_container_traits<C>::get(vertices, bsp_container_traits<I>::get(tree->triangles, i  ));
+          auto v2 = bsp_container_traits<C>::get(vertices, bsp_container_traits<I>::get(tree->triangles, i+1));
+          auto v3 = bsp_container_traits<C>::get(vertices, bsp_container_traits<I>::get(tree->triangles, i+2));
+
+          classifyTriangle(root_.get(), v1, v2, v3, inside, keepEdge, out, false);
+
+          i+=3;
+        }
+
+        classifyTree(tree->infront.get(), vertices, inside, keepEdge, out);
+        classifyTree(tree->behind.get(), vertices, inside, keepEdge, out);
+      }
+    }
+
   public:
 
     /// construct the tree, vertices are taken over, indices not
@@ -574,6 +757,40 @@ class BspTree
         // traverse tree and re-calculate all planes
         reCalculatePlanes(root_.get());
     }
+
+    /// perform boolean operations on the polyhedra defined by the two trees
+    static BspTree<C, I, E, F> intersect(const BspTree<C, I, E, F> & lhs, const BspTree<C, I, E, F> & rhs)
+    {
+      C result;
+
+      lhs.classifyTree(rhs.root_.get(), rhs.vertices_, true, true, result);
+      rhs.classifyTree(lhs.root_.get(), lhs.vertices_, true, false, result);
+
+      return BspTree<C, I, E, F>(std::move(result));
+    }
+
+    /// perform boolean operations on the polyhedra defined by the two trees
+    static BspTree<C, I, E, F> unify(const BspTree<C, I, E, F> & lhs, const BspTree<C, I, E, F> & rhs)
+    {
+      C result;
+
+      lhs.classifyTree(rhs.root_.get(), rhs.vertices_, false, true, result);
+      rhs.classifyTree(lhs.root_.get(), lhs.vertices_, false, false, result);
+
+      return BspTree<C, I, E, F>(std::move(result));
+    }
+
+    /// perform boolean operations on the polyhedra defined by the two trees
+    static BspTree<C, I, E, F> subtract(const BspTree<C, I, E, F> & lhs, const BspTree<C, I, E, F> & rhs)
+    {
+      C result;
+
+      lhs.classifyTree(rhs.root_.get(), rhs.vertices_, true, true, result);
+      rhs.classifyTree(lhs.root_.get(), lhs.vertices_, false, false, result);
+
+      return BspTree<C, I, E, F>(std::move(result));
+    }
+
 };
 
 
