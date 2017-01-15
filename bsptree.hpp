@@ -66,6 +66,12 @@ template<class V> struct bsp_container_traits
 template <class C, class I, int E = 4, class F = float>
 class BspTree
 {
+  public:
+
+    // the vertex type and the type for indexing the vertex container
+    using vertex_type=typename bsp_container_traits<C>::value_type;
+    using index_type=typename bsp_container_traits<I>::value_type;
+
   private:
 
     // Some internal helper functions
@@ -115,10 +121,6 @@ class BspTree
 
     // the vertices of all triangles within the tree
     C vertices_;
-
-    // the vertex type and the type for indexing the vertex container
-    using vertex_type=typename bsp_container_traits<C>::value_type;
-    using index_type=typename bsp_container_traits<I>::value_type;
 
     // calculate the plane in hessian normal form for the triangle with the indices given in the triple p
     std::tuple<qvm::vec<F, 3>, F> calculatePlane(int a, int b, int c)
