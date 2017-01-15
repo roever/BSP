@@ -28,10 +28,10 @@ template<class V> struct bsp_container_traits
   typedef typename V::value_type value_type;
   static auto get(const V & v, size_t i) { return v[i]; }
   template <class F>
-  static size_t appendInterpolate(V & v, size_t a, size_t b, F f)
+  static size_t appendInterpolate(V & v, const value_type & a, const value_type & b, F f)
   {
     size_t res = v.size();
-    v.emplace_back(bsp_vertex_traits<value_type>::getInterpolatedVertex(v[a], v[b], f));
+    v.emplace_back(bsp_vertex_traits<value_type>::getInterpolatedVertex(a, b, f));
     return res;
   }
   static void append(V & v, const value_type & val)
@@ -183,15 +183,15 @@ class BspTree
 
         if (side[0] * side[1] == -1)
         {
-          A[0] = bsp_container_traits<C>::appendInterpolate(vertices_, indices[i  ], indices[i+1], relation(dist[0], dist[1]));
+          A[0] = bsp_container_traits<C>::appendInterpolate(vertices_, vertices_[indices[i  ]], vertices_[indices[i+1]], relation(dist[0], dist[1]));
         }
         if (side[1] * side[2] == -1)
         {
-          A[1] = bsp_container_traits<C>::appendInterpolate(vertices_, indices[i+1], indices[i+2], relation(dist[1], dist[2]));
+          A[1] = bsp_container_traits<C>::appendInterpolate(vertices_, vertices_[indices[i+1]], vertices_[indices[i+2]], relation(dist[1], dist[2]));
         }
         if (side[2] * side[0] == -1)
         {
-          A[2] = bsp_container_traits<C>::appendInterpolate(vertices_, indices[i+2], indices[i  ], relation(dist[2], dist[0]));
+          A[2] = bsp_container_traits<C>::appendInterpolate(vertices_, vertices_[indices[i+2]], vertices_[indices[i  ]], relation(dist[2], dist[0]));
         }
 
         // go over all possible positions of the 3 vertices relative to the plane
