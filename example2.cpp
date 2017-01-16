@@ -1,62 +1,85 @@
 #include "bsptree.hpp"
 
-#include <boost/qvm/vec.hpp>
-#include <boost/qvm/vec_operations.hpp>
+#include <boost/qvm/vec_access.hpp>
+#include <boost/qvm/vec_traits_array.hpp>
 
 #include <vector>
 
-// This is the shortest example I can come up with, it creates a BSP tree from a set of
-// triangles and sorts them according to a vantage point
+// a simple example that uses c-type float arrays in the vertex structure to
+// store the position
+//
+// as we need to return a proper type to the bsp tree that also encapsulates the size
+// we define us a c-type float3. This type points to an array with 3 floats, but as
+// c doesn't allow proper array pointers... well the knowledge is implicit
+using float3=float *;
 
-using namespace boost::qvm;
+// so starting from there we need to teach qvm that float3 is a vector of 3 floats because
+// the bsp tree uses qvm for its vector calculations.. this is pretty straightforward more or
+// less lifted from qvm docutmentation
+namespace boost
+{
+  namespace qvm
+  {
+    template <>
+      struct vec_traits<float3>
+      {
+        static int const dim=3;
+        typedef float scalar_type;
 
-// This is the vertex structure we use in this example. You are free to use whatever
-// structure you want, with whatever content. But for demonstration purposes we keep
-// is to the essentials. The only required member for the BSP tree is the position of
-// the vertices, so we stay with it.
-// Also this library needs the position to be compatible with boost::qvm. We don't want
-// to bribe qvm into using our own type, so we stick with the qvm types for this example
-// see a later example for a possibility of your own struct
+        template <int I> static inline scalar_type & write_element( float3 & v ) { return v[I]; }
+        template <int I> static inline scalar_type read_element( float3 const & v ) { return v[I]; }
+
+        static inline scalar_type & write_element_idx( int i, float3 & v ) { return v[i]; }
+        static inline scalar_type read_element_idx( int i, float3 const & v ) { return v[i]; }
+      };
+  }
+}
+
+// our vertex structure... containing the position in p and a normal in n
 struct Vertex
 {
-  vec<float, 3> pos;
+  float p[3];
+
+  // constructors mainly for our use below
+  Vertex(float x1, float y1, float z1) : p{x1, y1, z1} {}
+  Vertex() : p {0, 0, 0} {}
+
+  // this is required by the bsp-tree to create intermediate vertices
+  // when an triangle needs to be split
+  // when i is 0 the function must create a vertex identical to a, if i is 1 it must
+  // be identical to b and inbetween it must be linearly interpolated between the two
+  Vertex(const Vertex a, const Vertex b, float i)
+  {
+    for (int j = 0; j < 3; j++)
+    {
+      p[j] = (1-i)*a.p[j] + i*b.p[j];
+    }
+  }
+
 };
 
-// You always have to create this specialization for your Vertex type. This allows the
-// library to access the position and to create intermediate vertices, if needed. There
-// are 3 members in this struct
-namespace bsp
-{
-  template <> struct bsp_vertex_traits<Vertex>
+// we need to tell the bsp tree library how to read out the position from a vertex
+// struct and what type the value will have. The value needs to be qvm compatible
+namespace bsp {
+
+  template<> struct bsp_vertex_traits<Vertex>
   {
-    // the position type is the type you want the library to use to handle positions.
-    // optimally this is identical to your own position type in the Vertex structure,
-    // but it doesn't need to be
-    typedef vec<float, 3> position_type;
-
-    // getPosition is the function used by the library to read the position field from
-    // a vertex, you can return a copy or a const reference... it is up to you
-    static const position_type & getPosition(const Vertex & v)
-    {
-      return v.pos;
-    }
-
-    // this function creates an interpolated vertex, it is intermediate between the
-    // two given vertices a and b
-    // the example implementation only has to care for the position, if your Vertex
-    // structure contains more fields you have to interpolate them as well, or not
-    // (e.g. when the colour is flat you don't)
+    typedef const float3 position_type;
+    static position_type getPosition(const Vertex & v) { return (const float3)v.p; }
     static Vertex getInterpolatedVertex(const Vertex & a, const Vertex & b, float i)
     {
-      return { a.pos*(1-i) + b.pos*i };
+      return Vertex(a, b, i);
     }
   };
 }
 
+using namespace boost::qvm;
+
 int main()
 {
-  // simple example, mesh of a cube
-  std::vector<Vertex> v2 {
+
+  // initialize with 2 intersecting cubes
+  std::vector<Vertex> v {
     {0, 0, 0},{1, 0, 0},{1, 1, 0},    {0, 0, 0}, {1, 1, 0}, {0, 1, 0},
     {0, 0, 1},{1, 1, 1},{1, 0, 1},    {0, 0, 1}, {0, 1, 1}, {1, 1, 1},
 
@@ -65,11 +88,47 @@ int main()
 
     {0, 0, 0},{0, 1, 0},{0, 1, 1},    {0, 0, 0}, {0, 1, 1}, {0, 0, 1},
     {1, 0, 0},{1, 1, 1},{1, 1, 0},    {1, 0, 0}, {1, 0, 1}, {1, 1, 1},
+
+    {0.5, 0.5, 0.5},{1.5, 0.5, 0.5},{1.5, 1.5, 0.5},    {0.5, 0.5, 0.5}, {1.5, 1.5, 0.5}, {0.5, 1.5, 0.5},
+    {0.5, 0.5, 1.5},{1.5, 1.5, 1.5},{1.5, 0.5, 1.5},    {0.5, 0.5, 1.5}, {0.5, 1.5, 1.5}, {1.5, 1.5, 1.5},
+
+    {0.5, 0.5, 0.5},{1.5, 0.5, 1.5},{1.5, 0.5, 0.5},    {0.5, 0.5, 0.5}, {0.5, 0.5, 1.5}, {1.5, 0.5, 1.5},
+    {0.5, 1.5, 0.5},{1.5, 1.5, 0.5},{1.5, 1.5, 1.5},    {0.5, 1.5, 0.5}, {1.5, 1.5, 1.5}, {0.5, 1.5, 1.5},
+
+    {0.5, 0.5, 0.5},{0.5, 1.5, 0.5},{0.5, 1.5, 1.5},    {0.5, 0.5, 0.5}, {0.5, 1.5, 1.5}, {0.5, 0.5, 1.5},
+    {1.5, 0.5, 0.5},{1.5, 1.5, 1.5},{1.5, 1.5, 0.5},    {1.5, 0.5, 0.5}, {1.5, 0.5, 1.5}, {1.5, 1.5, 1.5},
   };
 
-  // create the tree
-  bsp::BspTree<std::vector<Vertex>, std::vector<uint8_t>> bsp2(std::move(v2));
+  std::vector<uint16_t> indices(v.size());
+  for (size_t i = 0; i < indices.size(); i++) indices[i] = i;
 
-  // sort the triangles
-  auto a2 = bsp2.sort(vec<float, 3>{-5, 5, 5});
+  // create the tree (C++17)
+  //bsp::BspTree bsp(std::move(v), indices);
+  // older c++
+  bsp::BspTree<std::vector<Vertex>, std::vector<uint16_t>> bsp(std::move(v), indices);
+
+  // sort when looking from the given position
+  auto a = bsp.sort(vec<float, 3>{-5, 5, 5});
+
+  // output the resulting mesh as a stl file... we also use qvm here for simpler normal calculation
+  printf("solid \n");
+
+  for (size_t i = 0; i < a.size(); i += 3)
+  {
+    const float3 v1 = (const float3)bsp.getVertices()[a[i  ]].p;
+    const float3 v2 = (const float3)bsp.getVertices()[a[i+1]].p;
+    const float3 v3 = (const float3)bsp.getVertices()[a[i+2]].p;
+
+    auto n = cross(vref(v2)-v1, vref(v3)-v1);
+
+    printf("facet normal %f %f %f\n", X(n), Y(n), Z(n));
+    printf("  outer loop\n");
+    printf("    vertex %f %f %f\n", X(v1), Y(v1), Z(v1));
+    printf("    vertex %f %f %f\n", X(v2), Y(v2), Z(v2));
+    printf("    vertex %f %f %f\n", X(v3), Y(v3), Z(v3));
+    printf("  endloop\n");
+    printf("endfacet\n");
+  }
+
+  printf("endsolid\n");
 }
