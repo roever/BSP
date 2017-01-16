@@ -300,9 +300,8 @@ class BspTree
 
     // check what would happen if the plane of pivot is used as a cutting plane for the triangles in indices
     // returns the number of triangles that would end up on the plane of pivot, behind it or in front of it
-    std::tuple<int, int, int> evaluatePivot(int pivot, const I & indices)
+    std::tuple<int, int> evaluatePivot(int pivot, const I & indices)
     {
-      int cut = 0;
       int behind = 0;
       int infront = 0;
 
@@ -342,7 +341,6 @@ class BspTree
             break;
 
           case splitType( 0,  0,  0):
-            cut++;
             break;
 
           case splitType(-1, -1,  1):
@@ -371,7 +369,7 @@ class BspTree
         }
       }
 
-      return std::make_tuple(cut, behind, infront);
+      return std::make_tuple(behind, infront);
     }
 
     // create the bsp tree for the triangles given in the indices vector, it returns the
@@ -387,7 +385,7 @@ class BspTree
         assert(indices.size() % 3 == 0);
 
         // find a good pivot element
-        std::tuple<int, int, int> pivot = evaluatePivot(0, indices);
+        std::tuple<int, int> pivot = evaluatePivot(0, indices);
         size_t best = 0;
 
         // the loop is done in a way that ignores indices at the end that
@@ -398,25 +396,17 @@ class BspTree
 
           // new pivot is better, if
           // the total number of trignales is lower (less division)
-          // or equal and more triangles on the plane (less to distribute into subtrees)
           // or equal and the triangles more equally distributed between left and right
 
-          int np = std::get<0>(newPivot);
-          int nb = std::get<1>(newPivot);
-          int nf = std::get<2>(newPivot);
-          int ns = np+nb+nf;
+          int nb = std::get<0>(newPivot);
+          int nf = std::get<1>(newPivot);
+          int ns = nb+nf;
 
-          int bp = std::get<0>(pivot);
-          int bb = std::get<1>(pivot);
-          int bf = std::get<2>(pivot);
-          int bs = bp+bb+bf;
+          int bb = std::get<0>(pivot);
+          int bf = std::get<1>(pivot);
+          int bs = bb+bf;
 
-          if ( (ns < bs) ||
-               ((ns == bs) && ((np > bp) ||
-                               ((np == bp) && (abs(nb-nf) < abs(bb-bf)))
-                              )
-               )
-             )
+          if ((ns < bs) || ((ns == bs) && (abs(nb-nf) < abs(bb-bf))))
           {
             pivot = newPivot;
             best = i;
