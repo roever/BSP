@@ -55,7 +55,9 @@ namespace bsp
 
 int main()
 {
-  // simple example, mesh of a cube
+  // simple example, mesh of a cube, the library is prepared to use vector and deque as container
+  // types for the vertices and indices, but if you want to use another container you can,
+  // look at the later examples to see how
   std::vector<Vertex> v2 {
     {0, 0, 0},{1, 0, 0},{1, 1, 0},    {0, 0, 0}, {1, 1, 0}, {0, 1, 0},
     {0, 0, 1},{1, 1, 1},{1, 0, 1},    {0, 0, 1}, {0, 1, 1}, {1, 1, 1},
