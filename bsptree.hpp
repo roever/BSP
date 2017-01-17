@@ -133,9 +133,9 @@ class BspTree
     // calculate the plane in hessian normal form for the triangle with the indices given in the triple p
     std::tuple<qvm::vec<F, 3>, F> calculatePlane(int a, int b, int c)
     {
-      auto p1 = bsp_vertex_traits<vertex_type>::getPosition(bsp_container_traits<C>::get(vertices_, a));
-      auto p2 = bsp_vertex_traits<vertex_type>::getPosition(bsp_container_traits<C>::get(vertices_, b));
-      auto p3 = bsp_vertex_traits<vertex_type>::getPosition(bsp_container_traits<C>::get(vertices_, c));
+      auto p1 = bsp_vertex_traits<vertex_type>::getPosition(get(vertices_, a));
+      auto p2 = bsp_vertex_traits<vertex_type>::getPosition(get(vertices_, b));
+      auto p3 = bsp_vertex_traits<vertex_type>::getPosition(get(vertices_, c));
 
       using boost::qvm::operator-;
       qvm::vec<F, 3> norm = qvm::normalized(qvm::cross(qvm::vref(p2)-p1, qvm::vref(p3)-p1));
@@ -152,6 +152,17 @@ class BspTree
       bsp_container_traits<I>::append(v, v3);
     }
 
+    // helper function to get element from container using the traits
+    // this is used so often that it is worth it here
+    template <class T>
+      auto get(const T & container, size_t i) const { return bsp_container_traits<T>::get(container, i); }
+
+    // get the vertex that is pointed to by the i-th index in the index container
+    vertex_type getVertIndex(size_t i, const I & indices)
+    {
+      return get(vertices_, get(indices, i));
+    }
+
     // separate the triangles within indices into the 3 lists of triangles that are behind, infront and on the
     // plane of the triangle given in pivot
     // when needed triangles are split and the smaller triangles are added to the proper lists
@@ -159,7 +170,11 @@ class BspTree
     std::tuple<qvm::vec<F, 3>, F> separateTriangles(size_t pivot, const I & indices, I & behind, I & infront, I & onPlane)
     {
       // get the plane of the pivot triangle
-      auto plane = calculatePlane(indices[pivot], indices[pivot+1], indices[pivot+2]);
+      auto plane = calculatePlane(
+          get(indices, pivot  ),
+          get(indices, pivot+1),
+          get(indices, pivot+2)
+      );
 
       // go over all triangles and separate them
       for (size_t i = 0; i < bsp_container_traits<I>::getSize(indices); i+=3)
@@ -167,9 +182,9 @@ class BspTree
         // calculate distance of the 3 vertices from the choosen partitioning plane
         std::array<F, 3> dist
         {
-          distance(plane, bsp_vertex_traits<vertex_type>::getPosition(bsp_container_traits<C>::get(vertices_, indices[i  ]))),
-          distance(plane, bsp_vertex_traits<vertex_type>::getPosition(bsp_container_traits<C>::get(vertices_, indices[i+1]))),
-          distance(plane, bsp_vertex_traits<vertex_type>::getPosition(bsp_container_traits<C>::get(vertices_, indices[i+2])))
+          distance(plane, bsp_vertex_traits<vertex_type>::getPosition(getVertIndex(i  , indices))),
+          distance(plane, bsp_vertex_traits<vertex_type>::getPosition(getVertIndex(i+1, indices))),
+          distance(plane, bsp_vertex_traits<vertex_type>::getPosition(getVertIndex(i+2, indices)))
         };
 
         // check on which side of the plane the 3 points are
@@ -187,15 +202,15 @@ class BspTree
 
         if (side[0] * side[1] == -1)
         {
-          A[0] = bsp_container_traits<C>::appendInterpolate(vertices_, vertices_[indices[i  ]], vertices_[indices[i+1]], relation(dist[0], dist[1]));
+          A[0] = bsp_container_traits<C>::appendInterpolate(vertices_, getVertIndex(i  , indices), getVertIndex(i+1, indices), relation(dist[0], dist[1]));
         }
         if (side[1] * side[2] == -1)
         {
-          A[1] = bsp_container_traits<C>::appendInterpolate(vertices_, vertices_[indices[i+1]], vertices_[indices[i+2]], relation(dist[1], dist[2]));
+          A[1] = bsp_container_traits<C>::appendInterpolate(vertices_, getVertIndex(i+1, indices), getVertIndex(i+2, indices), relation(dist[1], dist[2]));
         }
         if (side[2] * side[0] == -1)
         {
-          A[2] = bsp_container_traits<C>::appendInterpolate(vertices_, vertices_[indices[i+2]], vertices_[indices[i  ]], relation(dist[2], dist[0]));
+          A[2] = bsp_container_traits<C>::appendInterpolate(vertices_, getVertIndex(i+2, indices), getVertIndex(i  , indices), relation(dist[2], dist[0]));
         }
 
         // go over all possible positions of the 3 vertices relative to the plane
@@ -211,7 +226,7 @@ class BspTree
           case splitType( 0, -1, -1):
           case splitType( 0, -1,  0):
           case splitType( 0,  0, -1):
-            append(behind, indices[i  ], indices[i+1], indices[i+2]);
+            append(behind, get(indices, i), get(indices, i+1), get(indices, i+2));
             break;
 
           case splitType( 0,  0,  1):
@@ -221,79 +236,79 @@ class BspTree
           case splitType( 1,  0,  1):
           case splitType( 1,  1,  0):
           case splitType( 1,  1,  1):
-            append(infront, indices[i  ], indices[i+1], indices[i+2]);
+            append(infront, get(indices, i  ), get(indices, i+1), get(indices, i+2));
             break;
 
           // triangle on the dividing plane
           case splitType( 0,  0,  0):
-            append(onPlane, indices[i  ], indices[i+1], indices[i+2]);
+            append(onPlane, get(indices, i  ), get(indices, i+1), get(indices, i+2));
             break;
 
           // and now all the ways that the triangle can be cut by the plane
           case splitType( 1, -1,  0):
-            append(behind,  indices[i+1], indices[i+2], A[0]);
-            append(infront, indices[i+2], indices[i+0], A[0]);
+            append(behind,  get(indices, i+1), get(indices, i+2), A[0]);
+            append(infront, get(indices, i+2), get(indices, i+0), A[0]);
             break;
 
           case splitType(-1,  0,  1):
-            append(behind,  indices[i+0], indices[i+1], A[2]);
-            append(infront, indices[i+1], indices[i+2], A[2]);
+            append(behind,  get(indices, i+0), get(indices, i+1), A[2]);
+            append(infront, get(indices, i+1), get(indices, i+2), A[2]);
             break;
 
           case splitType( 0,  1, -1):
-            append(behind,  indices[i+2], indices[i+0], A[1]);
-            append(infront, indices[i+0], indices[i+1], A[1]);
+            append(behind,  get(indices, i+2), get(indices, i+0), A[1]);
+            append(infront, get(indices, i+0), get(indices, i+1), A[1]);
             break;
 
           case splitType(-1,  1,  0):
-            append(behind,  indices[i+2], indices[i+0], A[0]);
-            append(infront, indices[i+1], indices[i+2], A[0]);
+            append(behind,  get(indices, i+2), get(indices, i+0), A[0]);
+            append(infront, get(indices, i+1), get(indices, i+2), A[0]);
             break;
 
           case splitType( 1,  0, -1):
-            append(behind,  indices[i+1], indices[i+2], A[2]);
-            append(infront, indices[i+0], indices[i+1], A[2]);
+            append(behind,  get(indices, i+1), get(indices, i+2), A[2]);
+            append(infront, get(indices, i+0), get(indices, i+1), A[2]);
             break;
 
           case splitType( 0, -1,  1):
-            append(behind,  indices[i+0], indices[i+1], A[1]);
-            append(infront, indices[i+2], indices[i+0], A[1]);
+            append(behind,  get(indices, i+0), get(indices, i+1), A[1]);
+            append(infront, get(indices, i+2), get(indices, i+0), A[1]);
             break;
 
           case splitType( 1, -1, -1):
-            append(infront, indices[i+0], A[0],         A[2]);
-            append(behind,  indices[i+1], A[2],         A[0]);
-            append(behind,  indices[i+1], indices[i+2], A[2]);
+            append(infront, get(indices, i+0), A[0],              A[2]);
+            append(behind,  get(indices, i+1), A[2],              A[0]);
+            append(behind,  get(indices, i+1), get(indices, i+2), A[2]);
             break;
 
           case splitType(-1,  1, -1):
-            append(infront, indices[i+1], A[1],         A[0]);
-            append(behind,  indices[i+2], A[0],         A[1]);
-            append(behind,  indices[i+2], indices[i+0], A[0]);
+            append(infront, get(indices, i+1), A[1],              A[0]);
+            append(behind,  get(indices, i+2), A[0],              A[1]);
+            append(behind,  get(indices, i+2), get(indices, i+0), A[0]);
             break;
 
           case splitType(-1, -1,  1):
-            append(infront, indices[i+2], A[2],         A[1]);
-            append(behind,  indices[i+0], A[1],         A[2]);
-            append(behind,  indices[i+0], indices[i+1], A[1]);
+            append(infront, get(indices, i+2), A[2],              A[1]);
+            append(behind,  get(indices, i+0), A[1],              A[2]);
+            append(behind,  get(indices, i+0), get(indices, i+1), A[1]);
             break;
 
           case splitType(-1,  1,  1):
-            append(behind,  indices[i+0], A[0],         A[2]);
-            append(infront, indices[i+1], A[2],         A[0]);
-            append(infront, indices[i+1], indices[i+2], A[2]);
+            append(behind,  get(indices, i+0), A[0],              A[2]);
+            append(infront, get(indices, i+1), A[2],              A[0]);
+            append(infront, get(indices, i+1), get(indices, i+2), A[2]);
             break;
 
           case splitType( 1, -1,  1):
-            append(behind,  indices[i+1], A[1],         A[0]);
-            append(infront, indices[i+0], A[0],         A[1]);
-            append(infront, indices[i+2], indices[i+0], A[1]);
+            append(behind,  get(indices, i+1), A[1],              A[0]);
+            append(infront, get(indices, i+0), A[0],              A[1]);
+            append(infront, get(indices, i+2), get(indices, i+0), A[1]);
             break;
 
           case splitType( 1,  1, -1):
-            append(behind,  indices[i+2], A[2],         A[1]);
-            append(infront, indices[i+0], A[1],         A[2]);
-            append(infront, indices[i+0], indices[i+1], A[1]);
+            append(behind,  get(indices, i+2), A[2],              A[1]);
+            append(infront, get(indices, i+0), A[1],              A[2]);
+            append(infront, get(indices, i+0), get(indices, i+1), A[1]);
             break;
 
         }
@@ -310,16 +325,20 @@ class BspTree
       int infront = 0;
 
       // count how many tringles would need to be cut, would lie behind and in front of the plane
-      auto plane = calculatePlane(indices[pivot], indices[pivot+1], indices[pivot+2]);
+      auto plane = calculatePlane(
+          get(indices, pivot  ),
+          get(indices, pivot+1),
+          get(indices, pivot+2)
+      );
 
       // this is a simplification of the algorithm above to just count the numbers of triangles
-      for (size_t i = 0; i < indices.size(); i+=3)
+      for (size_t i = 0; i < bsp_container_traits<I>::getSize(indices); i+=3)
       {
         std::array<int, 3> side
         {
-          sign(distance(plane, bsp_vertex_traits<vertex_type>::getPosition(bsp_container_traits<C>::get(vertices_, i  )))),
-          sign(distance(plane, bsp_vertex_traits<vertex_type>::getPosition(bsp_container_traits<C>::get(vertices_, i+1)))),
-          sign(distance(plane, bsp_vertex_traits<vertex_type>::getPosition(bsp_container_traits<C>::get(vertices_, i+2))))
+          sign(distance(plane, bsp_vertex_traits<vertex_type>::getPosition(get(vertices_, i  )))),
+          sign(distance(plane, bsp_vertex_traits<vertex_type>::getPosition(get(vertices_, i+1)))),
+          sign(distance(plane, bsp_vertex_traits<vertex_type>::getPosition(get(vertices_, i+2))))
         };
 
         switch (splitType(side[0], side[1], side[2]))
@@ -382,7 +401,7 @@ class BspTree
     // the lists of triangles that are behind and in front of the choosen plane
     std::unique_ptr<Node> makeTree(const I & indices)
     {
-      if (indices.size() > 0)
+      if (bsp_container_traits<I>::getSize(indices) > 0)
       {
         // we assume triangles, so the number of vertices in the index list
         // must be divisible by 3
@@ -483,9 +502,9 @@ class BspTree
     {
         // recalculate plane for this node with the first triangle on this plane
         n->plane = calculatePlane(
-                bsp_container_traits<I>::get(n->triangles, 0),
-                bsp_container_traits<I>::get(n->triangles, 1),
-                bsp_container_traits<I>::get(n->triangles, 2)
+                get(n->triangles, 0),
+                get(n->triangles, 1),
+                get(n->triangles, 2)
                 );
 
         // do the two subtrees
@@ -684,9 +703,9 @@ class BspTree
         size_t s = bsp_container_traits<I>::getSize(tree->triangles);
         while (i+2 < s)
         {
-          auto v1 = bsp_container_traits<C>::get(vertices, bsp_container_traits<I>::get(tree->triangles, i  ));
-          auto v2 = bsp_container_traits<C>::get(vertices, bsp_container_traits<I>::get(tree->triangles, i+1));
-          auto v3 = bsp_container_traits<C>::get(vertices, bsp_container_traits<I>::get(tree->triangles, i+2));
+          auto v1 = get(vertices, get(tree->triangles, i  ));
+          auto v2 = get(vertices, get(tree->triangles, i+1));
+          auto v3 = get(vertices, get(tree->triangles, i+2));
 
           classifyTriangle(root_.get(), v1, v2, v3, inside, keepEdge, out, false);
 
