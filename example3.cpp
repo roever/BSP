@@ -1,4 +1,5 @@
 #include "bsptree.hpp"
+#include "stl.hpp"
 
 #include <boost/qvm/vec_access.hpp>
 #include <boost/qvm/vec_traits_array.hpp>
@@ -75,36 +76,6 @@ namespace bsp {
   };
 }
 
-template <class B>
-void printSTL(const B & b)
-{
-  using namespace boost::qvm;
-
-  auto a = b.sort(vec<float, 3>{-5, 5, 5});
-
-  // output the resulting mesh as a stl file... we also use qvm here for simpler normal calculation
-  printf("solid \n");
-
-  for (size_t i = 0; i < a.size(); i += 3)
-  {
-    const auto v1 = bsp::bsp_vertex_traits<typename B::vertex_type>::getPosition(b.getVertices()[a[i  ]]);
-    const auto v2 = bsp::bsp_vertex_traits<typename B::vertex_type>::getPosition(b.getVertices()[a[i+1]]);
-    const auto v3 = bsp::bsp_vertex_traits<typename B::vertex_type>::getPosition(b.getVertices()[a[i+2]]);
-
-    auto n = cross(vref(v2)-v1, vref(v3)-v1);
-
-    printf("facet normal %f %f %f\n", X(n), Y(n), Z(n));
-    printf("  outer loop\n");
-    printf("    vertex %f %f %f\n", X(v1), Y(v1), Z(v1));
-    printf("    vertex %f %f %f\n", X(v2), Y(v2), Z(v2));
-    printf("    vertex %f %f %f\n", X(v3), Y(v3), Z(v3));
-    printf("  endloop\n");
-    printf("endfacet\n");
-  }
-
-  printf("endsolid\n");
-}
-
 int main()
 {
   // Example 3
@@ -155,5 +126,5 @@ int main()
 //  auto u = bsp1.subtract(bsp1, bsp3);
 //  auto u = bsp1.subtract(bsp3, bsp1);
 
-  printSTL(u);
+  printSTL(u.getVertices(), u.sort(boost::qvm::vec<float, 3>{-5, 5, 5}));
 }
