@@ -403,10 +403,6 @@ class BspTree
     {
       if (bsp_container_traits<I>::getSize(indices) > 0)
       {
-        // we assume triangles, so the number of vertices in the index list
-        // must be divisible by 3
-        assert(indices.size() % 3 == 0);
-
         // find a good pivot element
         std::tuple<int, int> pivot = evaluatePivot(0, indices);
         size_t best = 0;
