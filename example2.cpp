@@ -1,21 +1,30 @@
 #include "bsptree.hpp"
+#include "stl.hpp"
 
 #include <boost/qvm/vec_access.hpp>
 #include <boost/qvm/vec_traits_array.hpp>
 
 #include <vector>
 
-// a simple example that uses c-type float arrays in the vertex structure to
-// store the position
-//
-// as we need to return a proper type to the bsp tree that also encapsulates the size
-// we define us a c-type float3. This type points to an array with 3 floats, but as
-// c doesn't allow proper array pointers... well the knowledge is implicit
+using namespace boost::qvm;
+
+// this example demonstrates how to use none-qvm position types and a non-standard
+// container
+
+// let's start with our vertex structure, we will use a float array for this example
+struct Vertex
+{
+  float p[3];
+  // more fields ....
+};
+
+// and now teach qvm to use this array... for details please look at the documentation
+// of boost::qvm
+
+// define a type that can be used with our vertex position,
 using float3=float *;
 
-// so starting from there we need to teach qvm that float3 is a vector of 3 floats because
-// the bsp tree uses qvm for its vector calculations.. this is pretty straightforward more or
-// less lifted from qvm docutmentation
+// teach qvm how to use that type
 namespace boost
 {
   namespace qvm
@@ -35,31 +44,8 @@ namespace boost
   }
 }
 
-// our vertex structure... containing the position in p and a normal in n
-struct Vertex
-{
-  float p[3];
-
-  // constructors mainly for our use below
-  Vertex(float x1, float y1, float z1) : p{x1, y1, z1} {}
-  Vertex() : p {0, 0, 0} {}
-
-  // this is required by the bsp-tree to create intermediate vertices
-  // when an triangle needs to be split
-  // when i is 0 the function must create a vertex identical to a, if i is 1 it must
-  // be identical to b and inbetween it must be linearly interpolated between the two
-  Vertex(const Vertex a, const Vertex b, float i)
-  {
-    for (int j = 0; j < 3; j++)
-    {
-      p[j] = (1-i)*a.p[j] + i*b.p[j];
-    }
-  }
-
-};
-
-// we need to tell the bsp tree library how to read out the position from a vertex
-// struct and what type the value will have. The value needs to be qvm compatible
+// and now teach the bsp library how to use our vertex type
+//
 namespace bsp {
 
   template<> struct bsp_vertex_traits<Vertex>
@@ -68,7 +54,88 @@ namespace bsp {
     static position_type getPosition(const Vertex & v) { return (const float3)v.p; }
     static Vertex getInterpolatedVertex(const Vertex & a, const Vertex & b, float i)
     {
-      return Vertex(a, b, i);
+      return Vertex { a.p[0]*(1-i) + b.p[0]*i, a.p[1]*(1-i) + b.p[1]*i, a.p[2]*(1-i) + b.p[2]*i };
+    }
+  };
+}
+
+// and now create our own container. For the sake of the example let's just wrap
+// a large array
+struct VertexContainer {
+  Vertex data[100];
+  int used = 0;
+};
+
+struct IndexContainer {
+  uint16_t data[100];
+  int used = 0;
+};
+
+// and teach the bsp library how to use these container, depending on which container
+// (the one for the vertices or the one for the indices) and the functions of the BSP
+// tree class you are actually using you may not need all of the functions below...
+namespace bsp {
+
+  template<> struct bsp_container_traits<VertexContainer>
+  {
+    typedef Vertex value_type;
+    static auto get(const VertexContainer & v, size_t i) { return v.data[i]; }
+    template <class F>
+    static size_t appendInterpolate(VertexContainer & v, const value_type & a, const value_type & b, F f)
+    {
+      size_t res = v.used;
+      v.data[v.used] = bsp_vertex_traits<value_type>::getInterpolatedVertex(a, b, f);
+      v.used++;
+      return res;
+    }
+
+    static void append(VertexContainer & v, const value_type & val)
+    {
+      v.data[v.used] = val;
+      v.used++;
+    }
+    static void append(VertexContainer & v, const VertexContainer & v2)
+    {
+      for (int i = 0; i < v2.used; i++)
+      {
+        v.data[v.used] = v2.data[i];
+        v.used++;
+      }
+    }
+    static size_t getSize(const VertexContainer & v)
+    {
+      return v.used;
+    }
+    static void resize(VertexContainer & v, size_t i)
+    {
+      v.used = i;
+    }
+  };
+
+  template<> struct bsp_container_traits<IndexContainer>
+  {
+    typedef uint16_t value_type;
+    static auto get(const IndexContainer & v, size_t i) { return v.data[i]; }
+    static void append(IndexContainer & v, const value_type & val)
+    {
+      v.data[v.used] = val;
+      v.used++;
+    }
+    static void append(IndexContainer & v, const IndexContainer & v2)
+    {
+      for (int i = 0; i < v2.used; i++)
+      {
+        v.data[v.used] = v2.data[i];
+        v.used++;
+      }
+    }
+    static size_t getSize(const IndexContainer & v)
+    {
+      return v.used;
+    }
+    static void resize(IndexContainer & v, size_t i)
+    {
+      v.used = i;
     }
   };
 }
@@ -79,56 +146,33 @@ int main()
 {
 
   // initialize with 2 intersecting cubes
-  std::vector<Vertex> v {
-    {0, 0, 0},{1, 0, 0},{1, 1, 0},    {0, 0, 0}, {1, 1, 0}, {0, 1, 0},
-    {0, 0, 1},{1, 1, 1},{1, 0, 1},    {0, 0, 1}, {0, 1, 1}, {1, 1, 1},
+  VertexContainer v
+  {
+    {
+      {0, 0, 0},{1, 0, 0},{1, 1, 0},    {0, 0, 0}, {1, 1, 0}, {0, 1, 0},
+      {0, 0, 1},{1, 1, 1},{1, 0, 1},    {0, 0, 1}, {0, 1, 1}, {1, 1, 1},
 
-    {0, 0, 0},{1, 0, 1},{1, 0, 0},    {0, 0, 0}, {0, 0, 1}, {1, 0, 1},
-    {0, 1, 0},{1, 1, 0},{1, 1, 1},    {0, 1, 0}, {1, 1, 1}, {0, 1, 1},
+      {0, 0, 0},{1, 0, 1},{1, 0, 0},    {0, 0, 0}, {0, 0, 1}, {1, 0, 1},
+      {0, 1, 0},{1, 1, 0},{1, 1, 1},    {0, 1, 0}, {1, 1, 1}, {0, 1, 1},
 
-    {0, 0, 0},{0, 1, 0},{0, 1, 1},    {0, 0, 0}, {0, 1, 1}, {0, 0, 1},
-    {1, 0, 0},{1, 1, 1},{1, 1, 0},    {1, 0, 0}, {1, 0, 1}, {1, 1, 1},
+      {0, 0, 0},{0, 1, 0},{0, 1, 1},    {0, 0, 0}, {0, 1, 1}, {0, 0, 1},
+      {1, 0, 0},{1, 1, 1},{1, 1, 0},    {1, 0, 0}, {1, 0, 1}, {1, 1, 1},
 
-    {0.5, 0.5, 0.5},{1.5, 0.5, 0.5},{1.5, 1.5, 0.5},    {0.5, 0.5, 0.5}, {1.5, 1.5, 0.5}, {0.5, 1.5, 0.5},
-    {0.5, 0.5, 1.5},{1.5, 1.5, 1.5},{1.5, 0.5, 1.5},    {0.5, 0.5, 1.5}, {0.5, 1.5, 1.5}, {1.5, 1.5, 1.5},
+      {0.5, 0.5, 0.5},{1.5, 0.5, 0.5},{1.5, 1.5, 0.5},    {0.5, 0.5, 0.5}, {1.5, 1.5, 0.5}, {0.5, 1.5, 0.5},
+      {0.5, 0.5, 1.5},{1.5, 1.5, 1.5},{1.5, 0.5, 1.5},    {0.5, 0.5, 1.5}, {0.5, 1.5, 1.5}, {1.5, 1.5, 1.5},
 
-    {0.5, 0.5, 0.5},{1.5, 0.5, 1.5},{1.5, 0.5, 0.5},    {0.5, 0.5, 0.5}, {0.5, 0.5, 1.5}, {1.5, 0.5, 1.5},
-    {0.5, 1.5, 0.5},{1.5, 1.5, 0.5},{1.5, 1.5, 1.5},    {0.5, 1.5, 0.5}, {1.5, 1.5, 1.5}, {0.5, 1.5, 1.5},
+      {0.5, 0.5, 0.5},{1.5, 0.5, 1.5},{1.5, 0.5, 0.5},    {0.5, 0.5, 0.5}, {0.5, 0.5, 1.5}, {1.5, 0.5, 1.5},
+      {0.5, 1.5, 0.5},{1.5, 1.5, 0.5},{1.5, 1.5, 1.5},    {0.5, 1.5, 0.5}, {1.5, 1.5, 1.5}, {0.5, 1.5, 1.5},
 
-    {0.5, 0.5, 0.5},{0.5, 1.5, 0.5},{0.5, 1.5, 1.5},    {0.5, 0.5, 0.5}, {0.5, 1.5, 1.5}, {0.5, 0.5, 1.5},
-    {1.5, 0.5, 0.5},{1.5, 1.5, 1.5},{1.5, 1.5, 0.5},    {1.5, 0.5, 0.5}, {1.5, 0.5, 1.5}, {1.5, 1.5, 1.5},
+      {0.5, 0.5, 0.5},{0.5, 1.5, 0.5},{0.5, 1.5, 1.5},    {0.5, 0.5, 0.5}, {0.5, 1.5, 1.5}, {0.5, 0.5, 1.5},
+      {1.5, 0.5, 0.5},{1.5, 1.5, 1.5},{1.5, 1.5, 0.5},    {1.5, 0.5, 0.5}, {1.5, 0.5, 1.5}, {1.5, 1.5, 1.5},
+    },
+
+    72
   };
 
-  std::vector<uint16_t> indices(v.size());
-  for (size_t i = 0; i < indices.size(); i++) indices[i] = i;
-
-  // create the tree (C++17)
-  //bsp::BspTree bsp(std::move(v), indices);
-  // older c++
-  bsp::BspTree<std::vector<Vertex>, std::vector<uint16_t>> bsp(std::move(v), indices);
+  bsp::BspTree<VertexContainer, IndexContainer> bsp(std::move(v));
 
   // sort when looking from the given position
-  auto a = bsp.sort(vec<float, 3>{-5, 5, 5});
-
-  // output the resulting mesh as a stl file... we also use qvm here for simpler normal calculation
-  printf("solid \n");
-
-  for (size_t i = 0; i < a.size(); i += 3)
-  {
-    const float3 v1 = (const float3)bsp.getVertices()[a[i  ]].p;
-    const float3 v2 = (const float3)bsp.getVertices()[a[i+1]].p;
-    const float3 v3 = (const float3)bsp.getVertices()[a[i+2]].p;
-
-    auto n = cross(vref(v2)-v1, vref(v3)-v1);
-
-    printf("facet normal %f %f %f\n", X(n), Y(n), Z(n));
-    printf("  outer loop\n");
-    printf("    vertex %f %f %f\n", X(v1), Y(v1), Z(v1));
-    printf("    vertex %f %f %f\n", X(v2), Y(v2), Z(v2));
-    printf("    vertex %f %f %f\n", X(v3), Y(v3), Z(v3));
-    printf("  endloop\n");
-    printf("endfacet\n");
-  }
-
-  printf("endsolid\n");
+  printSTL(bsp.getVertices(), bsp.sort(vec<float, 3>{-5, 5, 5}));
 }
