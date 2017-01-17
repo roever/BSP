@@ -18,12 +18,12 @@ namespace qvm=boost::qvm;
 /// getPosition(const V & v), which returns a qvm handleable vector of the position
 /// getInterpolatedVertex(v1, v2, f) which returns an interpolated vertex between
 ///      the two given vertices
-template <class V> struct bsp_vertex_traits;
+template <class V> struct vertex_traits;
 
 /// specialize this template for the container that
 /// you want to use, the required fields are shown in this
 /// default version that works for normal std containers with random access (e.g. vector und deque)
-template<class V> struct bsp_container_traits
+template<class V> struct container_traits
 {
   typedef typename V::value_type value_type;
   static auto get(const V & v, size_t i) { return v[i]; }
@@ -31,7 +31,7 @@ template<class V> struct bsp_container_traits
   static size_t appendInterpolate(V & v, const value_type & a, const value_type & b, F f)
   {
     size_t res = v.size();
-    v.emplace_back(bsp_vertex_traits<value_type>::getInterpolatedVertex(a, b, f));
+    v.emplace_back(vertex_traits<value_type>::getInterpolatedVertex(a, b, f));
     return res;
   }
   static void append(V & v, const value_type & val)
@@ -62,8 +62,8 @@ template<class V> struct bsp_container_traits
 /// try to balance the tree because traversing the tree will always take the same amount of time
 /// because the number of triangles in there is always the same
 //
-/// \tpar C the vertex container type, you need to specialize bsp_container_traits for this, if it
-///       is not a vector or deque, you also need to specialize bsp_vertex_traits for the
+/// \tpar C the vertex container type, you need to specialize container_traits for this, if it
+///       is not a vector or deque, you also need to specialize vertex_traits for the
 ///       contained vertices
 /// \tpar I the index container type, the contained integer types need to be big enough to index
 ///       all vertices
@@ -77,8 +77,8 @@ class BspTree
   public:
 
     // the vertex type and the type for indexing the vertex container
-    using vertex_type=typename bsp_container_traits<C>::value_type;
-    using index_type=typename bsp_container_traits<I>::value_type;
+    using vertex_type=typename container_traits<C>::value_type;
+    using index_type=typename container_traits<I>::value_type;
 
   private:
 
@@ -133,9 +133,9 @@ class BspTree
     // calculate the plane in hessian normal form for the triangle with the indices given in the triple p
     std::tuple<qvm::vec<F, 3>, F> calculatePlane(int a, int b, int c)
     {
-      auto p1 = bsp_vertex_traits<vertex_type>::getPosition(get(vertices_, a));
-      auto p2 = bsp_vertex_traits<vertex_type>::getPosition(get(vertices_, b));
-      auto p3 = bsp_vertex_traits<vertex_type>::getPosition(get(vertices_, c));
+      auto p1 = vertex_traits<vertex_type>::getPosition(get(vertices_, a));
+      auto p2 = vertex_traits<vertex_type>::getPosition(get(vertices_, b));
+      auto p3 = vertex_traits<vertex_type>::getPosition(get(vertices_, c));
 
       using boost::qvm::operator-;
       qvm::vec<F, 3> norm = qvm::normalized(qvm::cross(qvm::vref(p2)-p1, qvm::vref(p3)-p1));
@@ -147,15 +147,15 @@ class BspTree
     // append indices for a triangle to the index container
     void append(I & v, index_type v1, index_type v2, index_type v3)
     {
-      bsp_container_traits<I>::append(v, v1);
-      bsp_container_traits<I>::append(v, v2);
-      bsp_container_traits<I>::append(v, v3);
+      container_traits<I>::append(v, v1);
+      container_traits<I>::append(v, v2);
+      container_traits<I>::append(v, v3);
     }
 
     // helper function to get element from container using the traits
     // this is used so often that it is worth it here
     template <class T>
-      auto get(const T & container, size_t i) const { return bsp_container_traits<T>::get(container, i); }
+      auto get(const T & container, size_t i) const { return container_traits<T>::get(container, i); }
 
     // get the vertex that is pointed to by the i-th index in the index container
     vertex_type getVertIndex(size_t i, const I & indices)
@@ -177,14 +177,14 @@ class BspTree
       );
 
       // go over all triangles and separate them
-      for (size_t i = 0; i < bsp_container_traits<I>::getSize(indices); i+=3)
+      for (size_t i = 0; i < container_traits<I>::getSize(indices); i+=3)
       {
         // calculate distance of the 3 vertices from the choosen partitioning plane
         std::array<F, 3> dist
         {
-          distance(plane, bsp_vertex_traits<vertex_type>::getPosition(getVertIndex(i  , indices))),
-          distance(plane, bsp_vertex_traits<vertex_type>::getPosition(getVertIndex(i+1, indices))),
-          distance(plane, bsp_vertex_traits<vertex_type>::getPosition(getVertIndex(i+2, indices)))
+          distance(plane, vertex_traits<vertex_type>::getPosition(getVertIndex(i  , indices))),
+          distance(plane, vertex_traits<vertex_type>::getPosition(getVertIndex(i+1, indices))),
+          distance(plane, vertex_traits<vertex_type>::getPosition(getVertIndex(i+2, indices)))
         };
 
         // check on which side of the plane the 3 points are
@@ -202,15 +202,15 @@ class BspTree
 
         if (side[0] * side[1] == -1)
         {
-          A[0] = bsp_container_traits<C>::appendInterpolate(vertices_, getVertIndex(i  , indices), getVertIndex(i+1, indices), relation(dist[0], dist[1]));
+          A[0] = container_traits<C>::appendInterpolate(vertices_, getVertIndex(i  , indices), getVertIndex(i+1, indices), relation(dist[0], dist[1]));
         }
         if (side[1] * side[2] == -1)
         {
-          A[1] = bsp_container_traits<C>::appendInterpolate(vertices_, getVertIndex(i+1, indices), getVertIndex(i+2, indices), relation(dist[1], dist[2]));
+          A[1] = container_traits<C>::appendInterpolate(vertices_, getVertIndex(i+1, indices), getVertIndex(i+2, indices), relation(dist[1], dist[2]));
         }
         if (side[2] * side[0] == -1)
         {
-          A[2] = bsp_container_traits<C>::appendInterpolate(vertices_, getVertIndex(i+2, indices), getVertIndex(i  , indices), relation(dist[2], dist[0]));
+          A[2] = container_traits<C>::appendInterpolate(vertices_, getVertIndex(i+2, indices), getVertIndex(i  , indices), relation(dist[2], dist[0]));
         }
 
         // go over all possible positions of the 3 vertices relative to the plane
@@ -332,13 +332,13 @@ class BspTree
       );
 
       // this is a simplification of the algorithm above to just count the numbers of triangles
-      for (size_t i = 0; i < bsp_container_traits<I>::getSize(indices); i+=3)
+      for (size_t i = 0; i < container_traits<I>::getSize(indices); i+=3)
       {
         std::array<int, 3> side
         {
-          sign(distance(plane, bsp_vertex_traits<vertex_type>::getPosition(get(vertices_, i  )))),
-          sign(distance(plane, bsp_vertex_traits<vertex_type>::getPosition(get(vertices_, i+1)))),
-          sign(distance(plane, bsp_vertex_traits<vertex_type>::getPosition(get(vertices_, i+2))))
+          sign(distance(plane, vertex_traits<vertex_type>::getPosition(get(vertices_, i  )))),
+          sign(distance(plane, vertex_traits<vertex_type>::getPosition(get(vertices_, i+1)))),
+          sign(distance(plane, vertex_traits<vertex_type>::getPosition(get(vertices_, i+2))))
         };
 
         switch (splitType(side[0], side[1], side[2]))
@@ -401,7 +401,7 @@ class BspTree
     // the lists of triangles that are behind and in front of the choosen plane
     std::unique_ptr<Node> makeTree(const I & indices)
     {
-      if (bsp_container_traits<I>::getSize(indices) > 0)
+      if (container_traits<I>::getSize(indices) > 0)
       {
         // find a good pivot element
         std::tuple<int, int> pivot = evaluatePivot(0, indices);
@@ -409,7 +409,7 @@ class BspTree
 
         // the loop is done in a way that ignores indices at the end that
         // don't result in a triangle any more
-        for (size_t i = 3; i+2 < bsp_container_traits<I>::getSize(indices); i+=3)
+        for (size_t i = 3; i+2 < container_traits<I>::getSize(indices); i+=3)
         {
           auto newPivot = evaluatePivot(i, indices);
 
@@ -462,13 +462,13 @@ class BspTree
       if (distance(n->plane, p) < 0)
       {
         sortBackToFront(p, n->infront.get(), out);
-        bsp_container_traits<I>::append(out, n->triangles);
+        container_traits<I>::append(out, n->triangles);
         sortBackToFront(p, n->behind.get(), out);
       }
       else
       {
         sortBackToFront(p, n->behind.get(), out);
-        bsp_container_traits<I>::append(out, n->triangles);
+        container_traits<I>::append(out, n->triangles);
         sortBackToFront(p, n->infront.get(), out);
       }
     }
@@ -511,9 +511,9 @@ class BspTree
     // append vertices
     void append(C & v, const vertex_type & v1, const vertex_type & v2, const vertex_type & v3) const
     {
-      bsp_container_traits<C>::append(v, v1);
-      bsp_container_traits<C>::append(v, v2);
-      bsp_container_traits<C>::append(v, v3);
+      container_traits<C>::append(v, v1);
+      container_traits<C>::append(v, v2);
+      container_traits<C>::append(v, v3);
     }
 
     // assumes, that the node is not empty
@@ -535,9 +535,9 @@ class BspTree
       // calculate distance of the 3 vertices from the choosen partitioning plane
       std::array<F, 3> dist
       {
-        distance(n->plane, bsp_vertex_traits<vertex_type>::getPosition(v1)),
-        distance(n->plane, bsp_vertex_traits<vertex_type>::getPosition(v2)),
-        distance(n->plane, bsp_vertex_traits<vertex_type>::getPosition(v3))
+        distance(n->plane, vertex_traits<vertex_type>::getPosition(v1)),
+        distance(n->plane, vertex_traits<vertex_type>::getPosition(v2)),
+        distance(n->plane, vertex_traits<vertex_type>::getPosition(v3))
       };
 
       // check on which side of the plane the 3 points are
@@ -548,18 +548,18 @@ class BspTree
 
       if (side[0] * side[1] == -1)
       {
-        A[0] = bsp_container_traits<C>::appendInterpolate(tmp, v1, v2, relation(dist[0], dist[1]));
+        A[0] = container_traits<C>::appendInterpolate(tmp, v1, v2, relation(dist[0], dist[1]));
       }
       if (side[1] * side[2] == -1)
       {
-        A[1] = bsp_container_traits<C>::appendInterpolate(tmp, v2, v3, relation(dist[1], dist[2]));
+        A[1] = container_traits<C>::appendInterpolate(tmp, v2, v3, relation(dist[1], dist[2]));
       }
       if (side[2] * side[0] == -1)
       {
-        A[2] = bsp_container_traits<C>::appendInterpolate(tmp, v3, v1, relation(dist[2], dist[0]));
+        A[2] = container_traits<C>::appendInterpolate(tmp, v3, v1, relation(dist[2], dist[0]));
       }
 
-      size_t preAddSize = bsp_container_traits<C>::getSize(out);
+      size_t preAddSize = container_traits<C>::getSize(out);
       bool complete = true; // is the triangle completely added with all parts that it is split into
       bool clipped = true;  // is the triangle split at all
 
@@ -677,7 +677,7 @@ class BspTree
         // triangle has been split, but all parts are added to
         // the output buffer, so remove everything added and add
         // the whole triangle as a single unit
-        bsp_container_traits<C>::resize(out, preAddSize);
+        container_traits<C>::resize(out, preAddSize);
         append(out, v1, v2, v3);
       }
 
@@ -696,7 +696,7 @@ class BspTree
       if (tree)
       {
         size_t i = 0;
-        size_t s = bsp_container_traits<I>::getSize(tree->triangles);
+        size_t s = container_traits<I>::getSize(tree->triangles);
         while (i+2 < s)
         {
           auto v1 = get(vertices, get(tree->triangles, i  ));
@@ -735,9 +735,9 @@ class BspTree
     {
       I indices;
 
-      for (size_t i = 0; i < bsp_container_traits<C>::getSize(vertices_); i++)
+      for (size_t i = 0; i < container_traits<C>::getSize(vertices_); i++)
       {
-        bsp_container_traits<I>::append(indices, i);
+        container_traits<I>::append(indices, i);
       }
 
       root_ = makeTree(indices);
@@ -776,7 +776,7 @@ class BspTree
 
     /// transform the polygon that this tree describes by the given matrix
     /// \tpar M matrix type, you have to be able to handle whit matrix
-    ///       in the bsp_vertex_traits::transform function, otherwise you can use
+    ///       in the vertex_traits::transform function, otherwise you can use
     ///       whatever you want
     template <class M>
     void transform(const M & m)
@@ -784,7 +784,7 @@ class BspTree
         // transform all vertices
         for (auto & v : vertices_)
         {
-            bsp_vertex_traits<vertex_type>::transform(v, m);
+            vertex_traits<vertex_type>::transform(v, m);
         }
 
         // traverse tree and re-calculate all planes

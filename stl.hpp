@@ -9,11 +9,11 @@ void printSTL(const C & vertices, const I & indices)
 
   printf("solid \n");
 
-  for (size_t i = 0; i+2 < bsp::bsp_container_traits<I>::getSize(indices); i += 3)
+  for (size_t i = 0; i+2 < bsp::container_traits<I>::getSize(indices); i += 3)
   {
-    const auto v1 = bsp::bsp_vertex_traits<typename bsp::bsp_container_traits<C>::value_type>::getPosition(bsp::bsp_container_traits<C>::get(vertices, bsp::bsp_container_traits<I>::get(indices, i  )));
-    const auto v2 = bsp::bsp_vertex_traits<typename bsp::bsp_container_traits<C>::value_type>::getPosition(bsp::bsp_container_traits<C>::get(vertices, bsp::bsp_container_traits<I>::get(indices, i+1)));
-    const auto v3 = bsp::bsp_vertex_traits<typename bsp::bsp_container_traits<C>::value_type>::getPosition(bsp::bsp_container_traits<C>::get(vertices, bsp::bsp_container_traits<I>::get(indices, i+2)));
+    const auto v1 = bsp::vertex_traits<typename bsp::container_traits<C>::value_type>::getPosition(bsp::container_traits<C>::get(vertices, bsp::container_traits<I>::get(indices, i  )));
+    const auto v2 = bsp::vertex_traits<typename bsp::container_traits<C>::value_type>::getPosition(bsp::container_traits<C>::get(vertices, bsp::container_traits<I>::get(indices, i+1)));
+    const auto v3 = bsp::vertex_traits<typename bsp::container_traits<C>::value_type>::getPosition(bsp::container_traits<C>::get(vertices, bsp::container_traits<I>::get(indices, i+2)));
 
     auto n = cross(vref(v2)-v1, vref(v3)-v1);
 

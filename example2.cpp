@@ -48,7 +48,7 @@ namespace boost
 //
 namespace bsp {
 
-  template<> struct bsp_vertex_traits<Vertex>
+  template<> struct vertex_traits<Vertex>
   {
     typedef const float3 position_type;
     static position_type getPosition(const Vertex & v) { return (const float3)v.p; }
@@ -76,7 +76,7 @@ struct IndexContainer {
 // tree class you are actually using you may not need all of the functions below...
 namespace bsp {
 
-  template<> struct bsp_container_traits<VertexContainer>
+  template<> struct container_traits<VertexContainer>
   {
     typedef Vertex value_type;
     static auto get(const VertexContainer & v, size_t i) { return v.data[i]; }
@@ -84,7 +84,7 @@ namespace bsp {
     static size_t appendInterpolate(VertexContainer & v, const value_type & a, const value_type & b, F f)
     {
       size_t res = v.used;
-      v.data[v.used] = bsp_vertex_traits<value_type>::getInterpolatedVertex(a, b, f);
+      v.data[v.used] = vertex_traits<value_type>::getInterpolatedVertex(a, b, f);
       v.used++;
       return res;
     }
@@ -112,7 +112,7 @@ namespace bsp {
     }
   };
 
-  template<> struct bsp_container_traits<IndexContainer>
+  template<> struct container_traits<IndexContainer>
   {
     typedef uint16_t value_type;
     static auto get(const IndexContainer & v, size_t i) { return v.data[i]; }

@@ -22,7 +22,7 @@ struct Vertex
 
 namespace bsp
 {
-  template <> struct bsp_vertex_traits<Vertex>
+  template <> struct vertex_traits<Vertex>
   {
     typedef vec<float, 3> position_type;
     static const position_type & getPosition(const Vertex & v)

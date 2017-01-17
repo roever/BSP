@@ -27,7 +27,7 @@ struct Vertex
 // are 3 members in this struct
 namespace bsp
 {
-  template <> struct bsp_vertex_traits<Vertex>
+  template <> struct vertex_traits<Vertex>
   {
     // the position type is the type you want the library to use to handle positions.
     // optimally this is identical to your own position type in the Vertex structure,
