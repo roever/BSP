@@ -42,7 +42,7 @@ template<class V> struct container_traits
   {
     v.insert(v.end(), v2.begin(), v2.end());
   }
-  static size_t getSize(const V & v)
+  static size_t getSize(const V & v) noexcept
   {
     return v.size();
   }
@@ -86,14 +86,14 @@ class BspTree
 
     // a function that is used to contract the numbers between -1 and 1 into one, used
     // for the categorisation of a triangles relation to the cutting plane
-    static constexpr int splitType(int a, int b, int c)
+    static constexpr int splitType(int a, int b, int c) noexcept
     {
       return (a+1)*16 + (b+1)*4 + (c+1);
     }
 
     // calculate distance of a point from a plane
     template <class T>
-    F distance(const std::tuple<qvm::vec<F, 3>, F> & plane, const T & t) const
+    F distance(const std::tuple<qvm::vec<F, 3>, F> & plane, const T & t) const noexcept
     {
       return qvm::dot(std::get<0>(plane), t) - std::get<1>(plane);
     }
@@ -102,7 +102,7 @@ class BspTree
     const F epsilon = std::pow(0.1, E);
 
     // calculate the sign of a number,
-    int sign(F i) const
+    int sign(F i) const noexcept
     {
       if (i >  epsilon) return 1;
       if (i < -epsilon) return -1;
@@ -111,7 +111,8 @@ class BspTree
 
     // calculate relative position of a point along a line which is a
     // units from one and b units from the other
-    F relation(F a, F b) const
+    // assumes that either a or b are not zero
+    F relation(F a, F b) const noexcept
     {
       return std::abs(a) / ( std::abs(a) + std::abs(b) );
     }
@@ -131,7 +132,7 @@ class BspTree
     C vertices_;
 
     // calculate the plane in hessian normal form for the triangle with the indices given in the triple p
-    std::tuple<qvm::vec<F, 3>, F> calculatePlane(int a, int b, int c)
+    std::tuple<qvm::vec<F, 3>, F> calculatePlane(int a, int b, int c) noexcept
     {
       auto p1 = vertex_traits<vertex_type>::getPosition(get(vertices_, a));
       auto p2 = vertex_traits<vertex_type>::getPosition(get(vertices_, b));
@@ -155,10 +156,10 @@ class BspTree
     // helper function to get element from container using the traits
     // this is used so often that it is worth it here
     template <class T>
-      auto get(const T & container, size_t i) const { return container_traits<T>::get(container, i); }
+      auto get(const T & container, size_t i) const noexcept { return container_traits<T>::get(container, i); }
 
     // get the vertex that is pointed to by the i-th index in the index container
-    vertex_type getVertIndex(size_t i, const I & indices)
+    vertex_type getVertIndex(size_t i, const I & indices) noexcept
     {
       return get(vertices_, get(indices, i));
     }
@@ -319,7 +320,7 @@ class BspTree
 
     // check what would happen if the plane of pivot is used as a cutting plane for the triangles in indices
     // returns the number of triangles that would end up on the plane of pivot, behind it or in front of it
-    std::tuple<int, int> evaluatePivot(int pivot, const I & indices)
+    std::tuple<int, int> evaluatePivot(int pivot, const I & indices) noexcept
     {
       int behind = 0;
       int infront = 0;
@@ -474,7 +475,7 @@ class BspTree
     }
 
     template <class P>
-    bool isInside(const P & p, const Node * n)
+    bool isInside(const P & p, const Node * n) const noexcept
     {
       F dist = distance(n->plane, p);
 
@@ -494,7 +495,7 @@ class BspTree
       }
     }
 
-    void reCalculatePlanes(Node * n)
+    void reCalculatePlanes(Node * n) noexcept
     {
         // recalculate plane for this node with the first triangle on this plane
         n->plane = calculatePlane(
@@ -744,7 +745,7 @@ class BspTree
     }
 
     /// get the vertex container
-    const C & getVertices() const { return vertices_; }
+    const C & getVertices() const noexcept { return vertices_; }
 
     /// get a container of indices for triangles so that the triangles are sorted
     /// from back to front when viewed from the given position
@@ -769,7 +770,7 @@ class BspTree
     /// \param p position you want to check
     /// \return true, when inside of one of the polytopes
     template <class P>
-    bool isInside(const P & p)
+    bool isInside(const P & p) const noexcept
     {
         return isInside(p, root_.get());
     }
@@ -779,7 +780,7 @@ class BspTree
     ///       in the vertex_traits::transform function, otherwise you can use
     ///       whatever you want
     template <class M>
-    void transform(const M & m)
+    void transform(const M & m) // TODO could be noexcept, if transform is noexcept
     {
         // transform all vertices
         for (auto & v : vertices_)
