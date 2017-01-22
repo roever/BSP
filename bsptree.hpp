@@ -62,15 +62,15 @@ template<class V> struct container_traits
 /// try to balance the tree because traversing the tree will always take the same amount of time
 /// because the number of triangles in there is always the same
 //
-/// \tpar C the vertex container type, you need to specialize container_traits for this, if it
-///       is not a vector or deque, you also need to specialize vertex_traits for the
-///       contained vertices
-/// \tpar I the index container type, the contained integer types need to be big enough to index
-///       all vertices
-/// \tpar E exponent of the epsilon value used to find out if a vertex is on the plane of a triangle.
-///       Specify according to the scale of your object, E=0 mans 1, E=1 0.1, E=2 0.01 and so on, if
-///       the vertex is less than that amount away from a plane it will be considered on the plane
-/// \tpar F the floating point type used for internal position representation
+/// \tparam C the vertex container type, you need to specialize container_traits for this, if it
+///         is not a vector or deque, you also need to specialize vertex_traits for the
+///         contained vertices
+/// \tparam I the index container type, the contained integer types need to be big enough to index
+///         all vertices
+/// \tparam E exponent of the epsilon value used to find out if a vertex is on the plane of a triangle.
+///         Specify according to the scale of your object, E=0 mans 1, E=1 0.1, E=2 0.01 and so on, if
+///         the vertex is less than that amount away from a plane it will be considered on the plane
+/// \tparam F the floating point type used for internal position representation
 template <class C, class I, int E = 4, class F = float>
 class BspTree
 {
@@ -766,7 +766,7 @@ class BspTree
     /// it. This only works, when you defined all your triangles in counter clockwise
     /// fashion when seen from the outside and also none of the polytopes that you add
     /// to the tree may intersect
-    /// \tpar P type of the position vector, qvm must be able to handle it
+    /// \tparam P type of the position vector, qvm must be able to handle it
     /// \param p position you want to check
     /// \return true, when inside of one of the polytopes
     template <class P>
@@ -776,9 +776,9 @@ class BspTree
     }
 
     /// transform the polygon that this tree describes by the given matrix
-    /// \tpar M matrix type, you have to be able to handle whit matrix
-    ///       in the vertex_traits::transform function, otherwise you can use
-    ///       whatever you want
+    /// \tparam M matrix type, you have to be able to handle whit matrix
+    ///         in the vertex_traits::transform function, otherwise you can use
+    ///         whatever you want
     template <class M>
     void transform(const M & m) // TODO could be noexcept, if transform is noexcept
     {
