@@ -337,9 +337,9 @@ class BspTree
       {
         std::array<int, 3> side
         {
-          sign(distance(plane, vertex_traits<vertex_type>::getPosition(get(vertices_, i  )))),
-          sign(distance(plane, vertex_traits<vertex_type>::getPosition(get(vertices_, i+1)))),
-          sign(distance(plane, vertex_traits<vertex_type>::getPosition(get(vertices_, i+2))))
+          sign(distance(plane, vertex_traits<vertex_type>::getPosition(getVertIndex(i  , indices)))),
+          sign(distance(plane, vertex_traits<vertex_type>::getPosition(getVertIndex(i+1, indices)))),
+          sign(distance(plane, vertex_traits<vertex_type>::getPosition(getVertIndex(i+2, indices))))
         };
 
         switch (splitType(side[0], side[1], side[2]))
