@@ -62,12 +62,12 @@ namespace bsp {
 // and now create our own container. For the sake of the example let's just wrap
 // a large array
 struct VertexContainer {
-  Vertex data[100];
+  Vertex data[200];
   int used = 0;
 };
 
 struct IndexContainer {
-  uint16_t data[100];
+  uint16_t data[200];
   int used = 0;
 };
 
@@ -168,7 +168,7 @@ int main()
       {1.5, 0.5, 0.5},{1.5, 1.5, 1.5},{1.5, 1.5, 0.5},    {1.5, 0.5, 0.5}, {1.5, 0.5, 1.5}, {1.5, 1.5, 1.5},
     },
 
-    72
+    36*2
   };
 
   bsp::BspTree<VertexContainer, IndexContainer> bsp(std::move(v));
